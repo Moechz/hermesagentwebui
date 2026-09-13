@@ -1,16 +1,20 @@
 #!/bin/bash
 # Build hermeswebui TOS packages.
-#   - Stages package trees under dist/ from packaging/templates + assets.
+#   - Stages package trees under dist/ from packaging/templates + assets +
+#     payload pins (upstream app copy, vendored wheels, generated manifest,
+#     agent locked requirements, first-start bootstrap).
 #   - Substitutes __VERSION__ / __DEB_ARCH__ / __TOS_PLATFORM__.
 #   - Enforces LF line endings (official spec 4.6).
 #   - Builds .deb via dpkg-deb on Linux only; macOS stages only (AGENTS.md 7).
-# App payload staging (upstream copy, vendored wheels, components manifest)
-# is a TODO for the next milestone; the trees produced today are skeletons.
+# Env: ALLOW_PENDING=1 emits a manifest with unverified (null) hashes —
+# the on-device bootstrap always refuses such manifests.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TEMPLATES="$ROOT/packaging/templates"
 ASSETS="$ROOT/packaging/assets"
+PAYLOAD="$ROOT/packaging/payload"
+UPSTREAM="$ROOT/upstream/hermes-webui"
 DIST="$ROOT/dist"
 APP_ID=hermeswebui
 VERSION="${1:-0.0.1}"
@@ -57,6 +61,72 @@ with open(f, 'w', encoding='utf-8') as fh:
 PY
 }
 
+stage_app() {
+  # <dst> : copy the upstream runtime surface (server + api + static).
+  local dst="$1"
+  local app="$dst/usr/local/hermeswebui/app"
+  mkdir -p "$app"
+  for item in server.py api static requirements.txt LICENSE README.md; do
+    if [ -e "$UPSTREAM/$item" ]; then
+      cp -R "$UPSTREAM/$item" "$app/"
+    else
+      echo "build: missing upstream item: $UPSTREAM/$item" >&2
+      exit 1
+    fi
+  done
+  find "$app" -name '__pycache__' -type d -prune -exec rm -rf {} + 2>/dev/null || true
+}
+
+stage_wheels() {
+  # <dst> <platform> : download + verify the vendored webui wheels.
+  local dst="$1" plat="$2"
+  local wheels="$dst/usr/local/hermeswebui/wheels"
+  mkdir -p "$wheels"
+  python3 - "$PAYLOAD/wheels.lock" "$plat" "$wheels" <<'PY'
+import hashlib, json, os, sys, urllib.request
+lock, plat, out = sys.argv[1:4]
+pkgs = json.load(open(lock))["packages"]
+reqs = []
+for name, p in pkgs.items():
+    w = p["wheels"][plat]
+    dest = os.path.join(out, w["file"])
+    h = hashlib.sha256(); got = 0
+    with urllib.request.urlopen(w["url"], timeout=120) as r, open(dest + ".part", "wb") as f:
+        while True:
+            c = r.read(1 << 20)
+            if not c: break
+            got += len(c); h.update(c); f.write(c)
+    if got != w["size"] or h.hexdigest() != w["sha256"]:
+        raise SystemExit(f"wheel mismatch: {w['file']}")
+    os.replace(dest + ".part", dest)
+    print(f"  wheel ok: {w['file']}")
+    reqs.append(f"{name}=={p['version']}")
+with open(os.path.join(out, "requirements.txt"), "w") as f:
+    f.write("\n".join(reqs) + "\n")
+PY
+}
+
+stage_manifest() {
+  # <dst> <platform>
+  local dst="$1" plat="$2"
+  local man="$dst/usr/local/hermeswebui/manifests"
+  mkdir -p "$man"
+  local extra=()
+  if [ "${ALLOW_PENDING:-0}" = "1" ]; then extra+=("--allow-pending"); fi
+  python3 "$ROOT/scripts/generate-manifest.py" \
+    --pins "$PAYLOAD/component-pins.json" \
+    --version "$VERSION" --arch "$plat" \
+    --out "$man/components.json" "${extra[@]:+${extra[@]}}"
+}
+
+stage_agent_payload() {
+  # <dst>
+  local dst="$1"
+  mkdir -p "$dst/usr/local/hermeswebui/agent"
+  cp "$PAYLOAD/agent-core-requirements.txt" \
+     "$dst/usr/local/hermeswebui/agent/agent-core-requirements.txt"
+}
+
 stage_common_metadata() {
   # <dst> : destination package root; metadata shared by data/manual debs.
   local dst="$1"
@@ -67,25 +137,29 @@ stage_common_metadata() {
 }
 
 stage_service_tree() {
-  # <dst> : destination package root; service payload + unit + lifecycle.
+  # <dst> <platform> <debarch>
   local dst="$1" plat="$2" darch="$3"
   mkdir -p \
     "$dst/DEBIAN" \
     "$dst/usr/local/hermeswebui/bin" \
-    "$dst/usr/local/hermeswebui/init.d" \
-    "$dst/usr/local/hermeswebui/manifests"
+    "$dst/usr/local/hermeswebui/init.d"
   cp "$TEMPLATES/service-control.in" "$dst/DEBIAN/control"
   cp "$TEMPLATES/postinst"  "$dst/DEBIAN/postinst"
   cp "$TEMPLATES/prerm"     "$dst/DEBIAN/prerm"
   cp "$TEMPLATES/postrm"    "$dst/DEBIAN/postrm"
   cp "$TEMPLATES/hermeswebui.in" "$dst/usr/local/hermeswebui/bin/hermeswebui"
+  cp "$TEMPLATES/hermeswebui-bootstrap.py.in" \
+     "$dst/usr/local/hermeswebui/bin/hermeswebui-bootstrap"
   cp "$TEMPLATES/hermeswebui.service" \
      "$dst/usr/local/hermeswebui/init.d/hermeswebui.service"
-  # TODO(payload): stage upstream app/, vendored wheels/, and
-  # manifests/components.json (pinned URLs + SHA-256) per D-010.
+  stage_app "$dst"
+  stage_wheels "$dst" "$plat"
+  stage_manifest "$dst" "$plat"
+  stage_agent_payload "$dst"
   subst "$dst/DEBIAN/control" - "$darch"
   chmod 0755 "$dst/DEBIAN/postinst" "$dst/DEBIAN/prerm" "$dst/DEBIAN/postrm" \
-             "$dst/usr/local/hermeswebui/bin/hermeswebui"
+             "$dst/usr/local/hermeswebui/bin/hermeswebui" \
+             "$dst/usr/local/hermeswebui/bin/hermeswebui-bootstrap"
 }
 
 build_deb() {
@@ -120,7 +194,7 @@ for plat in $PLATFORMS; do
            \( -name '*.sh' -o -name '*.py' -o -name '*.ini' \
               -o -name '*.lang' -o -name '*.service' -o -name '*.conf' \
               -o -name 'postinst' -o -name 'prerm' -o -name 'postrm' \
-              -o -name 'hermeswebui' \))
+              -o -name 'hermeswebui' -o -name 'hermeswebui-bootstrap' \))
   build_deb "$SVC" "$DIST/hermeswebui-service_${VERSION}_${darch}.deb"
   build_deb "$DATA" "$DIST/hermeswebui-data_${VERSION}_all_${plat}.deb"
 
@@ -133,7 +207,7 @@ for plat in $PLATFORMS; do
            \( -name '*.sh' -o -name '*.py' -o -name '*.ini' \
               -o -name '*.lang' -o -name '*.service' -o -name '*.conf' \
               -o -name 'postinst' -o -name 'prerm' -o -name 'postrm' \
-              -o -name 'hermeswebui' \))
+              -o -name 'hermeswebui' -o -name 'hermeswebui-bootstrap' \))
   build_deb "$MAN" "$DIST/hermeswebui_${VERSION}_${darch}_manual.deb"
 
   # Dual-mode submission archive: <app_id>_<platform>.tar.gz wrapping the

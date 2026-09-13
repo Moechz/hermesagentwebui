@@ -1,0 +1,308 @@
+#!/usr/bin/env python3
+"""hermeswebui first-start bootstrap (D-007/D-010).
+
+Runs on the TOS system Python (3.10, stdlib only) before the WebUI starts:
+
+  1. read the pinned component manifest shipped inside the deb
+  2. fetch the portable CPython runtime and the Hermes Agent source from
+     the application's own GitHub Release (single whitelisted origin),
+     verifying size and SHA-256 for every artifact
+  3. unpack with hardened tar handling (no absolute paths, no traversal,
+     no symlink escape, no device nodes)
+  4. create two virtual environments:
+       - webui venv: pyyaml + cryptography from the wheels vendored in the
+         deb (offline, no network)
+       - agent venv: hermes-agent + its locked dependencies from
+         agent-core-requirements.txt (pip --require-hashes; PyPI primary,
+         TUNA mirror fallback, identical hashes)
+  5. record progress in a state file; every step is idempotent and safe to
+     retry. Any failure exits non-zero with a readable message; the systemd
+     unit's restart policy drives retries. No silent degradation, ever.
+
+Security invariants:
+  - downloads only from https://github.com (manifest release_base prefix)
+  - a manifest with a null/missing hash is refused outright
+  - tar members are individually validated before extraction
+  - subprocess calls are argv arrays only; no shell strings
+"""
+import argparse
+import hashlib
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tarfile
+import tempfile
+import urllib.error
+import urllib.request
+
+APP_HOME = os.environ.get("HWUI_APP_HOME", "/usr/local/hermeswebui")
+STATE = os.environ.get("HWUI_STATE", "/var/lib/hermeswebui")
+ALLOWED_HOST = "github.com"
+CHUNK = 1024 * 1024
+
+
+class BootError(Exception):
+    pass
+
+
+def log(msg: str) -> None:
+    print(f"hermeswebui-bootstrap: {msg}", file=sys.stderr, flush=True)
+
+
+def load_manifest() -> dict:
+    path = os.path.join(APP_HOME, "manifests", "components.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            m = json.load(f)
+    except (OSError, ValueError) as e:
+        raise BootError(f"cannot read manifest {path}: {e}")
+    if m.get("schema") != 1:
+        raise BootError(f"unsupported manifest schema: {m.get('schema')!r}")
+    for section in ("runtime", "agent"):
+        comp = m.get(section, {})
+        for field in ("file", "sha256", "size", "dest"):
+            if comp.get(field) in (None, ""):
+                raise BootError(f"manifest {section}.{field} missing — refusing to fetch")
+    return m
+
+
+def component_url(manifest: dict, section: str) -> str:
+    base = manifest["release_base"].rstrip("/")
+    url = f"{base}/{manifest[section]['file']}"
+    if not url.startswith("https://" + ALLOWED_HOST + "/"):
+        raise BootError(f"url outside whitelist: {url}")
+    return url
+
+
+def download(url: str, dest: str, sha256: str, size: int) -> None:
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    tmp = dest + ".part"
+    h = hashlib.sha256()
+    got = 0
+    try:
+        with urllib.request.urlopen(url, timeout=60) as resp, open(tmp, "wb") as out:
+            while True:
+                chunk = resp.read(CHUNK)
+                if not chunk:
+                    break
+                got += len(chunk)
+                if got > size:
+                    raise BootError(f"{url}: exceeds expected size {size}")
+                h.update(chunk)
+                out.write(chunk)
+    except (OSError, urllib.error.URLError) as e:
+        raise BootError(f"download failed {url}: {e}")
+    if got != size:
+        raise BootError(f"{url}: size mismatch got {got} expected {size}")
+    if h.hexdigest() != sha256:
+        raise BootError(f"{url}: sha256 mismatch got {h.hexdigest()} expected {sha256}")
+    os.replace(tmp, dest)
+
+
+def _safe_target(dest_root: str, name: str, strip: int) -> str:
+    parts = name.split("/")
+    if strip:
+        parts = parts[strip:]
+        if not parts:
+            raise BootError(f"tar member fully stripped: {name}")
+    if name.startswith("/") or ".." in parts:
+        raise BootError(f"unsafe tar member: {name}")
+    return os.path.join(dest_root, *parts)
+
+
+def safe_extract(tar_path: str, dest_root: str, strip: int = 0) -> None:
+    os.makedirs(dest_root, exist_ok=True)
+    root_real = os.path.realpath(dest_root)
+    with tarfile.open(tar_path, "r:gz") as tf:
+        for member in tf:
+            target = _safe_target(dest_root, member.name, strip)
+            real_parent = os.path.realpath(os.path.dirname(target))
+            if not real_parent.startswith(root_real + os.sep) and real_parent != root_real:
+                raise BootError(f"tar member escapes destination: {member.name}")
+            if member.issym() or member.islnk():
+                link = member.linkname or ""
+                if link.startswith("/"):
+                    raise BootError(f"absolute link in archive: {member.name}")
+                os.makedirs(real_parent, exist_ok=True)
+                try:
+                    os.symlink(link, target)
+                except FileExistsError:
+                    pass
+            elif member.isdir():
+                os.makedirs(target, exist_ok=True)
+            elif member.isfile():
+                os.makedirs(real_parent, exist_ok=True)
+                src = tf.extractfile(member)
+                if src is None:
+                    raise BootError(f"cannot extract member: {member.name}")
+                with open(target, "wb") as out:
+                    shutil.copyfileobj(src, out)
+                os.chmod(target, (member.mode & 0o777) or 0o644)
+            else:
+                raise BootError(f"unsupported tar member type: {member.name}")
+
+
+class State:
+    def __init__(self, path: str):
+        self.path = path
+        try:
+            with open(path, encoding="utf-8") as f:
+                self.data = json.load(f)
+        except (OSError, ValueError):
+            self.data = {}
+
+    def done(self, key: str) -> bool:
+        return bool(self.data.get(key, {}).get("ok"))
+
+    def mark(self, key: str, **kv) -> None:
+        self.data.setdefault(key, {})
+        self.data[key].update({"ok": True}, **kv)
+        tmp = self.path + ".tmp"
+        os.makedirs(os.path.dirname(self.path), exist_ok=True)
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(self.data, f, indent=2)
+        os.replace(tmp, self.path)
+
+
+def run(argv, **kw) -> subprocess.CompletedProcess:
+    log("run: " + " ".join(argv))
+    return subprocess.run(argv, **kw)
+
+
+def ensure_runtime(m: dict, st: State, downloads: str) -> str:
+    dest = os.path.join(STATE, m["runtime"]["dest"])
+    rt_sha = m["runtime"]["sha256"]
+    if st.done("runtime") and os.path.exists(os.path.join(dest, "bin", "python3")):
+        return os.path.join(dest, "bin", "python3")
+    log(f"provisioning portable CPython {m['runtime']['python']} ...")
+    tarball = os.path.join(downloads, m["runtime"]["file"])
+    download(component_url(m, "runtime"), tarball, rt_sha, int(m["runtime"]["size"]))
+    tmp_root = tempfile.mkdtemp(prefix="hwui-rt-", dir=STATE)
+    try:
+        # PBS install_only tarballs unpack to a single top-level python/ dir.
+        safe_extract(tarball, tmp_root)
+        src = os.path.join(tmp_root, "python")
+        if not os.path.exists(os.path.join(src, "bin", "python3")):
+            raise BootError("runtime archive did not contain python/bin/python3")
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        if os.path.exists(dest):
+            shutil.rmtree(dest)
+        os.replace(src, dest)
+    finally:
+        shutil.rmtree(tmp_root, ignore_errors=True)
+    os.remove(tarball)
+    st.mark("runtime", sha256=rt_sha)
+    return os.path.join(dest, "bin", "python3")
+
+
+def ensure_webui_venv(rt_python: str, st: State) -> str:
+    venv = os.path.join(STATE, "venvs", "webui")
+    pip = os.path.join(venv, "bin", "pip")
+    if st.done("webui_venv") and os.path.exists(pip):
+        return os.path.join(venv, "bin", "python3")
+    log("creating webui venv (offline wheels) ...")
+    r = run([rt_python, "-m", "venv", venv], capture_output=True, text=True)
+    if r.returncode != 0:
+        raise BootError(f"venv creation failed: {r.stderr.strip()}")
+    req = os.path.join(APP_HOME, "wheels", "requirements.txt")
+    r = run([pip, "install", "--no-index", "--find-links",
+             os.path.join(APP_HOME, "wheels"), "-r", req],
+            capture_output=True, text=True)
+    if r.returncode != 0:
+        raise BootError(f"webui wheels install failed: {r.stderr.strip()[-2000:]}")
+    st.mark("webui_venv")
+    return os.path.join(venv, "bin", "python3")
+
+
+def ensure_agent(m: dict, st: State, downloads: str) -> str:
+    dest = os.path.join(STATE, m["agent"]["dest"])
+    ag_sha = m["agent"]["sha256"]
+    if st.done("agent_src") and os.path.isdir(dest):
+        return dest
+    log(f"provisioning hermes-agent {m['agent']['version']} source ...")
+    tarball = os.path.join(downloads, m["agent"]["file"])
+    download(component_url(m, "agent"), tarball, ag_sha, int(m["agent"]["size"]))
+    tmp_root = tempfile.mkdtemp(prefix="hwui-ag-", dir=STATE)
+    try:
+        safe_extract(tarball, tmp_root, strip=1)
+        if os.path.exists(dest):
+            shutil.rmtree(dest)
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        os.replace(tmp_root, dest)
+        tmp_root = None
+    finally:
+        if tmp_root:
+            shutil.rmtree(tmp_root, ignore_errors=True)
+    os.remove(tarball)
+    st.mark("agent_src", sha256=ag_sha)
+    return dest
+
+
+def ensure_agent_venv(m: dict, rt_python: str, agent_dir: str, st: State) -> None:
+    venv = os.path.join(STATE, "venvs", "agent")
+    pip = os.path.join(venv, "bin", "pip")
+    if st.done("agent_venv") and os.path.exists(pip):
+        return
+    log("creating agent venv (locked, hashed requirements) ...")
+    r = run([rt_python, "-m", "venv", venv], capture_output=True, text=True)
+    if r.returncode != 0:
+        raise BootError(f"agent venv creation failed: {r.stderr.strip()}")
+    req = os.path.join(APP_HOME, "agent", "agent-core-requirements.txt")
+    indexes = [m["pip"]["index_url"], m["pip"]["fallback_index_url"]]
+    last = ""
+    for idx in indexes:
+        r = run([pip, "install", "--index-url", idx, "--require-hashes", "-r", req],
+                capture_output=True, text=True)
+        if r.returncode == 0:
+            break
+        last = r.stderr.strip()[-2000:]
+        log(f"index {idx} failed, trying fallback ...")
+    else:
+        raise BootError(f"agent requirements install failed: {last}")
+    r = run([pip, "install", "--no-deps", agent_dir], capture_output=True, text=True)
+    if r.returncode != 0:
+        raise BootError(f"agent package install failed: {r.stderr.strip()[-2000:]}")
+    st.mark("agent_venv")
+
+
+def check(m: dict, st: State) -> bool:
+    ok = (
+        st.done("runtime")
+        and os.path.exists(os.path.join(STATE, m["runtime"]["dest"], "bin", "python3"))
+        and st.done("webui_venv")
+        and os.path.exists(os.path.join(STATE, "venvs", "webui", "bin", "python3"))
+        and st.done("agent_src")
+        and os.path.isdir(os.path.join(STATE, m["agent"]["dest"]))
+        and st.done("agent_venv")
+        and os.path.exists(os.path.join(STATE, "venvs", "agent", "bin", "pip"))
+    )
+    return ok
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--check", action="store_true",
+                    help="exit 0 only if every component is provisioned")
+    args = ap.parse_args()
+    try:
+        m = load_manifest()
+        st = State(os.path.join(STATE, "bootstrap", "state.json"))
+        if args.check:
+            return 0 if check(m, st) else 1
+        downloads = os.path.join(STATE, "downloads")
+        os.makedirs(downloads, exist_ok=True)
+        rt_python = ensure_runtime(m, st, downloads)
+        ensure_webui_venv(rt_python, st)
+        agent_dir = ensure_agent(m, st, downloads)
+        ensure_agent_venv(m, rt_python, agent_dir, st)
+        log("all components provisioned")
+        return 0
+    except BootError as e:
+        log(str(e))
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "runtime": {
+    "python": "3.12.14",
+    "pbs_tag": "20260901",
+    "targets": {
+      "x86_64": {
+        "file": "cpython-3.12.14+20260901-x86_64-unknown-linux-gnu-install_only.tar.gz",
+        "sha256": "94e295aa00a5a23c60a825030d27030125aeb74948d4d21250c146ab97bacbfc",
+        "size": 111368545
+      },
+      "aarch64": {
+        "file": "cpython-3.12.14+20260901-aarch64-unknown-linux-gnu-install_only.tar.gz",
+        "sha256": null,
+        "size": 83541077
+      }
+    }
+  },
+  "agent": {
+    "name": "hermes-agent",
+    "version": "0.21.2",
+    "tag": "v2026.9.11",
+    "file": "hermes-agent-v2026.9.11.tar.gz",
+    "sha256": null,
+    "size": null
+  },
+  "notes": "null = pending: hash not yet verified end-to-end (partial download observed once). generate-manifest.py refuses null unless --allow-pending; hermeswebui-bootstrap refuses null always."
+}

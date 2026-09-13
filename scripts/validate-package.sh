@@ -110,6 +110,54 @@ for ctl in ['data-control.in', 'service-control.in', 'manual-control.in']:
     if '__VERSION__' not in c:
         err(f'{ctl}: missing __VERSION__ placeholder')
 
+# --- payload pins / wheels / agent reqs ---------------------------------
+P = os.path.join(os.path.dirname(T), 'payload')
+SHA_RE_STR = r'^[0-9a-f]{64}$'
+pins = json.load(open(os.path.join(P, 'component-pins.json'), encoding='utf-8'))
+for arch in ('x86_64', 'aarch64'):
+    t = pins['runtime']['targets'][arch]
+    sha = t.get('sha256')
+    if sha is None:
+        print(f'PENDING: runtime {arch} sha256 not yet verified')
+    elif not re.match(SHA_RE_STR, sha):
+        err(f'runtime {arch} sha256 malformed')
+if pins['agent'].get('sha256') is None:
+    print('PENDING: agent sha256 not yet verified')
+wlock = json.load(open(os.path.join(P, 'wheels.lock'), encoding='utf-8'))
+for name, p in wlock['packages'].items():
+    for arch in ('x86_64', 'aarch64'):
+        w = p['wheels'].get(arch)
+        if not w:
+            err(f'wheels.lock: {name} missing wheel for {arch}')
+            continue
+        if 'manylinux' not in w['file'] or not re.match(SHA_RE_STR, w['sha256']):
+            err(f'wheels.lock: {name} {arch} wheel malformed')
+reqs = open(os.path.join(P, 'agent-core-requirements.txt'), encoding='utf-8').read()
+if '--hash=sha256:' not in reqs:
+    err('agent-core-requirements.txt lacks sha256 hashes')
+if re.search(r'^hermes-agent==', reqs, re.M):
+    err('agent-core-requirements.txt must not pin the agent itself')
+
+# --- bootstrap + launcher wiring ----------------------------------------
+boot = os.path.join(T, 'hermeswebui-bootstrap.py.in')
+import py_compile, tempfile
+try:
+    py_compile.compile(boot, cfile=os.path.join(tempfile.gettempdir(), 'hwui-boot.pyc'),
+                       doraise=True)
+except py_compile.PyCompileError as e:
+    err(f'bootstrap does not compile: {e}')
+if '\r\n' in open(boot, 'rb').read().decode('utf-8', 'replace'):
+    err('bootstrap has CRLF endings')
+launcher = open(os.path.join(T, 'hermeswebui.in'), encoding='utf-8').read()
+for must in ['hermeswebui-bootstrap --check', 'venvs/webui/bin/python3',
+             'HERMES_WEBUI_AGENT_DIR']:
+    if must.split(' --')[0] not in launcher:
+        err(f'launcher missing: {must}')
+mft = open(os.path.join(T, 'components.json.in'), encoding='utf-8').read()
+for ph in ['__VERSION__', '__RT_SHA__', '__AG_SHA__']:
+    if ph not in mft:
+        err(f'components.json.in missing placeholder {ph}')
+
 for n in notes:
     print(f'NOTE: {n}')
 if errors:

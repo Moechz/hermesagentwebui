@@ -30,9 +30,10 @@ StateDirectoryMode=0711
 LogsDirectory=hermeswebui
 LogsDirectoryMode=0750
 
-# Portable runtime unpacks/byte-compiles under APP_HOME; user workspaces may
-# live on TOS volumes (Volume1/Volume2..., "-" prefix tolerates absence).
-ReadWritePaths=/usr/local/hermeswebui/runtime -/Volume1 -/Volume2
+# The portable runtime, both venvs and the agent live under /var/lib/hermeswebui
+# (StateDirectory is implicitly writable despite ProtectSystem=strict). User
+# workspaces may live on TOS volumes (Volume1/Volume2..., "-" tolerates absence).
+ReadWritePaths=-/Volume1 -/Volume2
 
 NoNewPrivileges=true
 ProtectSystem=strict

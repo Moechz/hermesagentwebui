@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "app_version": "__VERSION__",
+  "arch": "__ARCH__",
+  "release_base": "https://github.com/Moechz/hermeswebui/releases/download/v__VERSION__",
+  "runtime": {
+    "python": "__RT_PY__",
+    "pbs_tag": "__RT_TAG__",
+    "file": "__RT_FILE__",
+    "sha256": "__RT_SHA__",
+    "size": __RT_SIZE__,
+    "dest": "runtime/python"
+  },
+  "agent": {
+    "version": "__AG_VER__",
+    "tag": "__AG_TAG__",
+    "file": "__AG_FILE__",
+    "sha256": "__AG_SHA__",
+    "size": __AG_SIZE__,
+    "dest": "hermes/hermes-agent"
+  },
+  "pip": {
+    "index_url": "https://pypi.org/simple",
+    "fallback_index_url": "https://pypi.tuna.tsinghua.edu.cn/simple"
+  }
+}

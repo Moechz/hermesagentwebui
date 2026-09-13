@@ -1,31 +1,36 @@
 #!/bin/sh
 # hermeswebui service launcher (staged as /usr/local/hermeswebui/bin/hermeswebui).
-# Runs the upstream hermes-webui server on the portable Python runtime.
+#
+# First start: the bootstrap (running on the TOS system Python) provisions the
+# portable CPython runtime, the agent source and both venvs from the pinned,
+# SHA-256-verified manifest (D-007/D-010). Later starts take the fast path.
 set -eu
 
 APP_HOME=/usr/local/hermeswebui
-PYTHON="$APP_HOME/runtime/python/bin/python3"
+STATE=/var/lib/hermeswebui
+BOOTSTRAP="$APP_HOME/bin/hermeswebui-bootstrap"
+SYSTEM_PYTHON=/usr/bin/python3
+WEBUI_PYTHON="$STATE/venvs/webui/bin/python3"
 APP_ENTRY="$APP_HOME/app/server.py"
 
 # Bind all interfaces so the TOS desktop iframe (client-side, opens
 # http://${ip}:8787) can reach the app from LAN clients. Access control is
-# the WebUI password set during first-run onboarding (REQUIREMENTS §5.1,
-# upstream F-10). Q3 residual risk tracked in docs/TASK_STATE.md.
+# the WebUI password set during first-run onboarding (REQUIREMENTS 5.1,
+# upstream F-10). Residual risk tracked in docs/TASK_STATE.md.
 export HERMES_WEBUI_HOST="${HERMES_WEBUI_HOST:-0.0.0.0}"
 export HERMES_WEBUI_PORT="${HERMES_WEBUI_PORT:-8787}"
-export HERMES_HOME="${HERMES_HOME:-/var/lib/hermeswebui/hermes}"
+export HERMES_HOME="${HERMES_HOME:-$STATE/hermes}"
 export HERMES_WEBUI_STATE_DIR="${HERMES_WEBUI_STATE_DIR:-$HERMES_HOME/webui}"
+export HERMES_WEBUI_AGENT_DIR="${HERMES_WEBUI_AGENT_DIR:-$STATE/hermes/hermes-agent}"
 export PYTHONUNBUFFERED=1
 
-# TODO(D-007/D-010) first-start bootstrap: before exec, verify the runtime
-# and agent components against $APP_HOME/manifests/components.json
-# (pinned URLs + SHA-256, shipped inside this package) and fetch any missing
-# component. On mismatch or fetch failure: readable error to stderr/journal,
-# exit non-zero, no silent degradation. Fetch must happen here (first service
-# start), never in lifecycle scripts (F-15-1).
-if [ ! -x "$PYTHON" ]; then
-  echo "hermeswebui: portable Python runtime missing; first-start bootstrap not implemented yet" >&2
-  exit 1
+if ! "$SYSTEM_PYTHON" "$BOOTSTRAP" --check >/dev/null 2>&1; then
+  # Long-running provisioning (Type=simple: this does not gate systemd's
+  # start timeout; the port opens once the WebUI actually binds).
+  "$SYSTEM_PYTHON" "$BOOTSTRAP" || {
+    echo "hermeswebui: first-start provisioning failed; see journal for details" >&2
+    exit 1
+  }
 fi
 
-exec "$PYTHON" "$APP_ENTRY"
+exec "$WEBUI_PYTHON" "$APP_ENTRY"
