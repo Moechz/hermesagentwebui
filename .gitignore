@@ -1,0 +1,19 @@
+# Nested upstream clone (updated via git pull inside it)
+upstream/
+
+# Build artifacts
+dist/
+*.deb
+*.tar.gz
+
+# Caches
+.cache/
+__pycache__/
+*.pyc
+node_modules/
+
+# Secrets / local tokens
+.agents/
+
+# OS noise
+.DS_Store
