@@ -190,7 +190,11 @@ build_deb() {
   fi
 }
 
-rm -rf "$DIST"
+# Wipe generated output only; keep operator-staged material such as
+# dist/assets (release-upload copies of pinned components).
+rm -rf "$DIST/stage"
+find "$DIST" -maxdepth 1 -name '*.deb' -delete
+find "$DIST" -maxdepth 1 -name '*.tar.gz' -delete
 mkdir -p "$DIST"
 
 for plat in $PLATFORMS; do

@@ -6,7 +6,7 @@
     "targets": {
       "x86_64": {
         "file": "cpython-3.12.14+20260901-x86_64-unknown-linux-gnu-install_only.tar.gz",
-        "sha256": "94e295aa00a5a23c60a825030d27030125aeb74948d4d21250c146ab97bacbfc",
+        "sha256": "936c246dfdbbfa7cb22dd01814a21f582a892689fae96b06071a5e433baffa22",
         "size": 111368545
       },
       "aarch64": {
@@ -24,5 +24,5 @@
     "sha256": "bf45fc6c40ad770e30dfa7677ee6804a24be1a7eab768b283a0883c64662d76e",
     "size": 70477661
   },
-  "notes": "All hashes measured end-to-end 2026-09-13 (device download + tar validation + sha256). aarch64/x86_64 sizes match the GitHub release manifest exactly. Release-upload copies staged under dist/assets/ (untracked)."
+  "notes": "All hashes verified 2026-09-13: aarch64/agent via complete device download + tar listing + full sha256sum; x86_64 hash from the GitHub API asset digest, confirmed by full-file sha256sum of the completed device download (an earlier streaming-hash attempt produced a wrong value 94e295aa..., a known pitfall of resumable streams). Release-upload copies staged under dist/assets/ (untracked)."
 }
