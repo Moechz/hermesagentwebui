@@ -2,7 +2,7 @@
   "schema": 1,
   "app_version": "__VERSION__",
   "arch": "__ARCH__",
-  "release_base": "https://github.com/Moechz/hermeswebui/releases/download/v__VERSION__",
+  "release_base": "https://github.com/Moechz/hermeswebui/releases/download/components-2026.09",
   "webui": {
     "tag": "exp-v0.52.302",
     "version": "0.52.302",

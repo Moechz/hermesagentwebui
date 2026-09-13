@@ -1,5 +1,6 @@
 {
   "schema": 1,
+  "components_release": "components-2026.09",
   "webui": {
     "tag": "exp-v0.52.302",
     "version": "0.52.302",

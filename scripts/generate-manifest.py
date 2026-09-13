@@ -51,7 +51,12 @@ def main() -> None:
         "schema": 1,
         "app_version": args.version,
         "arch": args.arch,
-        "release_base": "https://github.com/Moechz/hermeswebui/releases/download/v" + args.version,
+        # Component assets live on a dedicated components-* release so the
+        # version releases stay deb-only (user directive 2026-09-13). The
+        # tag is pinned here; new pin sets mint a new components-* tag and
+        # never overwrite files (older debs pin these hashes).
+        "release_base": "https://github.com/Moechz/hermeswebui/releases/download/"
+                        + pins["components_release"],
         "webui": {
             "tag": pins["webui"]["tag"],
             "version": pins["webui"]["version"],
