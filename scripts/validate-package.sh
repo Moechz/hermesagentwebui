@@ -43,11 +43,17 @@ if cfg['id'] != cfg['system_id'] or cfg['id'] != cfg['package']:
     err('id/system_id/package must match')
 if cfg['version'] != '__VERSION__':
     err('config.ini version must be the __VERSION__ placeholder here')
-if cfg.get('type') != 'iframe' and cfg.get('type') is not None:
-    notes.append(f"config.ini type={cfg['type']} (reference used iframe)")
-if cfg['type'] == 'iframe' and cfg['path'].startswith('http'):
-    notes.append('URL-form path with type=iframe: validated only on-device '
-                 '(Rsync Backup used a relative path); see TASK_STATE open question')
+# WebUI External Open (D-011): open_path replaces type; URL path opens in a
+# new browser tab (official docker-development example shape); embedded
+# window size fields are zeroed.
+if cfg.get('open_path') is not True:
+    err('config.ini must set open_path=true (WebUI External Open, D-011)')
+if not cfg['path'].startswith('http://${ip}'):
+    err('external open path must be http://${ip}:<port>')
+if 'type' in cfg:
+    err('D-011: type must be removed when open_path is set')
+if cfg.get('width') or cfg.get('height'):
+    err('external open must not declare an embedded window size')
 
 # --- hermeswebui.lang ---------------------------------------------------
 lang_path = os.path.join(T, 'hermeswebui.lang')
