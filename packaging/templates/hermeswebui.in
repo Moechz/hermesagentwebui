@@ -10,7 +10,7 @@ APP_HOME=/usr/local/hermeswebui
 STATE=/var/lib/hermeswebui
 BOOTSTRAP="$APP_HOME/bin/hermeswebui-bootstrap"
 SYSTEM_PYTHON=/usr/bin/python3
-WEBUI_PYTHON="$STATE/venvs/webui/bin/python3"
+WEBUI_PYTHON="$STATE/venvs/app/bin/python3"
 APP_ENTRY="$APP_HOME/app/server.py"
 
 # Bind all interfaces so the TOS desktop iframe (client-side, opens

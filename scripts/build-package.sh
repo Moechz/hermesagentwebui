@@ -156,13 +156,14 @@ stage_common_metadata() {
 }
 
 stage_service_tree() {
-  # <dst> <platform> <debarch>
+  # <dst> <platform> <debarch> [control-template]
   local dst="$1" plat="$2" darch="$3"
+  local ctl="${4:-$TEMPLATES/service-control.in}"
   mkdir -p \
     "$dst/DEBIAN" \
     "$dst/usr/local/hermeswebui/bin" \
     "$dst/usr/local/hermeswebui/init.d"
-  cp "$TEMPLATES/service-control.in" "$dst/DEBIAN/control"
+  cp "$ctl" "$dst/DEBIAN/control"
   cp "$TEMPLATES/postinst"  "$dst/DEBIAN/postinst"
   cp "$TEMPLATES/prerm"     "$dst/DEBIAN/prerm"
   cp "$TEMPLATES/postrm"    "$dst/DEBIAN/postrm"
@@ -223,7 +224,9 @@ for plat in $PLATFORMS; do
 
   # Single-package manual-install deb (same content, one package).
   MAN="$DIST/stage/${plat}/hermeswebui-manual"
-  stage_service_tree "$MAN" "$plat" "$darch"
+  # Single-package manual deb: identical payload, Package: hermeswebui
+  # (reference convention: service deb keeps the -service suffix).
+  stage_service_tree "$MAN" "$plat" "$darch" "$TEMPLATES/manual-control.in"
   stage_common_metadata "$MAN"
   subst "$MAN/config.ini" "$plat" -
   to_lf $(find "$MAN" -type f \

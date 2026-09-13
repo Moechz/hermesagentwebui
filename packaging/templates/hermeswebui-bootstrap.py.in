@@ -9,12 +9,13 @@ Runs on the TOS system Python (3.10, stdlib only) before the WebUI starts:
      verifying size and SHA-256 for every artifact
   3. unpack with hardened tar handling (no absolute paths, no traversal,
      no symlink escape, no device nodes)
-  4. create two virtual environments:
-       - webui venv: pyyaml + cryptography from the wheels vendored in the
-         deb (offline, no network)
-       - agent venv: hermes-agent + its locked dependencies from
-         agent-core-requirements.txt (pip --require-hashes; PyPI primary,
-         TUNA mirror fallback, identical hashes)
+  4. create the single application venv (upstream's server imports the
+     agent in-process, so one interpreter serves both):
+       - webui wheels from the deb (offline, no network)
+       - agent locked dependencies via pip --require-hashes
+         (TUNA primary, PyPI fallback — identical hashes)
+       - the agent source itself as an editable install (upstream's
+         setup.py only supports editable installs)
   5. record progress in a state file; every step is idempotent and safe to
      retry. Any failure exits non-zero with a readable message; the systemd
      unit's restart policy drives retries. No silent degradation, ever.
@@ -197,12 +198,19 @@ def ensure_runtime(m: dict, st: State, downloads: str) -> str:
     return os.path.join(dest, "bin", "python3")
 
 
-def ensure_webui_venv(rt_python: str, st: State) -> str:
-    venv = os.path.join(STATE, "venvs", "webui")
+def ensure_app_venv(rt_python: str, st: State) -> str:
+    """Create the single application venv and install the offline wheels.
+
+    Upstream's server imports run_agent.AIAgent in-process
+    (api/agent_runtime.py), so the webui server and the agent share ONE
+    interpreter environment: webui wheels + agent locked deps + editable
+    agent source all live in $STATE/venvs/app.
+    """
+    venv = os.path.join(STATE, "venvs", "app")
     pip = os.path.join(venv, "bin", "pip")
-    if st.done("webui_venv") and os.path.exists(pip):
+    if st.done("app_venv") and os.path.exists(pip):
         return os.path.join(venv, "bin", "python3")
-    log("creating webui venv (offline wheels) ...")
+    log("creating app venv (offline wheels) ...")
     r = run([rt_python, "-m", "venv", venv], capture_output=True, text=True)
     if r.returncode != 0:
         raise BootError(f"venv creation failed: {r.stderr.strip()}")
@@ -212,7 +220,7 @@ def ensure_webui_venv(rt_python: str, st: State) -> str:
             capture_output=True, text=True)
     if r.returncode != 0:
         raise BootError(f"webui wheels install failed: {r.stderr.strip()[-2000:]}")
-    st.mark("webui_venv")
+    st.mark("app_venv")
     return os.path.join(venv, "bin", "python3")
 
 
@@ -240,43 +248,55 @@ def ensure_agent(m: dict, st: State, downloads: str) -> str:
     return dest
 
 
-def ensure_agent_venv(m: dict, rt_python: str, agent_dir: str, st: State) -> None:
-    venv = os.path.join(STATE, "venvs", "agent")
-    pip = os.path.join(venv, "bin", "pip")
-    if st.done("agent_venv") and os.path.exists(pip):
-        return
-    log("creating agent venv (locked, hashed requirements) ...")
-    r = run([rt_python, "-m", "venv", venv], capture_output=True, text=True)
-    if r.returncode != 0:
-        raise BootError(f"agent venv creation failed: {r.stderr.strip()}")
-    req = os.path.join(APP_HOME, "agent", "agent-core-requirements.txt")
-    indexes = [m["pip"]["index_url"], m["pip"]["fallback_index_url"]]
+def install_with_fallback(pip: str, args: list, indexes: list) -> None:
+    """pip install with index fallback; hashes stay identical on mirrors."""
     last = ""
     for idx in indexes:
-        r = run([pip, "install", "--index-url", idx, "--require-hashes", "-r", req],
+        r = run([pip, "install", "--index-url", idx, *args],
                 capture_output=True, text=True)
         if r.returncode == 0:
-            break
+            return
         last = r.stderr.strip()[-2000:]
         log(f"index {idx} failed, trying fallback ...")
-    else:
-        raise BootError(f"agent requirements install failed: {last}")
-    r = run([pip, "install", "--no-deps", agent_dir], capture_output=True, text=True)
-    if r.returncode != 0:
-        raise BootError(f"agent package install failed: {r.stderr.strip()[-2000:]}")
-    st.mark("agent_venv")
+    raise BootError(f"pip install failed: {last}")
+
+
+def ensure_agent_deps(m: dict, st: State) -> None:
+    if st.done("agent_deps"):
+        return
+    pip = os.path.join(STATE, "venvs", "app", "bin", "pip")
+    log("installing agent locked dependencies (hashed) ...")
+    req = os.path.join(APP_HOME, "agent", "agent-core-requirements.txt")
+    install_with_fallback(pip, ["--require-hashes", "-r", req],
+                          [m["pip"]["index_url"], m["pip"]["fallback_index_url"]])
+    st.mark("agent_deps")
+
+
+def ensure_agent_editable(m: dict, agent_dir: str, st: State) -> None:
+    if st.done("agent_editable"):
+        return
+    pip = os.path.join(STATE, "venvs", "app", "bin", "pip")
+    log("installing hermes-agent (editable) ...")
+    # hermes-agent's setup.py refuses regular wheel/sdist builds by design
+    # (upstream distributes via installer/Docker/Nix); editable install is
+    # the supported path and keeps the unpacked source tree authoritative.
+    # Build isolation needs setuptools+wheel from an index, so the index
+    # (with fallback) is passed here too.
+    install_with_fallback(pip, ["--no-deps", "--editable", agent_dir],
+                          [m["pip"]["index_url"], m["pip"]["fallback_index_url"]])
+    st.mark("agent_editable")
 
 
 def check(m: dict, st: State) -> bool:
     ok = (
         st.done("runtime")
         and os.path.exists(os.path.join(STATE, m["runtime"]["dest"], "bin", "python3"))
-        and st.done("webui_venv")
-        and os.path.exists(os.path.join(STATE, "venvs", "webui", "bin", "python3"))
+        and st.done("app_venv")
+        and os.path.exists(os.path.join(STATE, "venvs", "app", "bin", "python3"))
         and st.done("agent_src")
         and os.path.isdir(os.path.join(STATE, m["agent"]["dest"]))
-        and st.done("agent_venv")
-        and os.path.exists(os.path.join(STATE, "venvs", "agent", "bin", "pip"))
+        and st.done("agent_deps")
+        and st.done("agent_editable")
     )
     return ok
 
@@ -294,9 +314,10 @@ def main() -> int:
         downloads = os.path.join(STATE, "downloads")
         os.makedirs(downloads, exist_ok=True)
         rt_python = ensure_runtime(m, st, downloads)
-        ensure_webui_venv(rt_python, st)
+        ensure_app_venv(rt_python, st)
         agent_dir = ensure_agent(m, st, downloads)
-        ensure_agent_venv(m, rt_python, agent_dir, st)
+        ensure_agent_deps(m, st)
+        ensure_agent_editable(m, agent_dir, st)
         log("all components provisioned")
         return 0
     except BootError as e:

@@ -20,6 +20,11 @@ Environment=HERMES_WEBUI_STATE_DIR=/var/lib/hermeswebui/hermes/webui
 TimeoutStartSec=60
 TimeoutStopSec=15
 KillMode=control-group
+# First-start provisioning depends on network that may not be ready at
+# boot; retry with backoff so the bootstrap self-heals (bounded by
+# StartLimit* above; a hard failure stays failed for manual attention).
+Restart=on-failure
+RestartSec=10s
 LimitNOFILE=65535
 
 # systemd creates /var/lib/hermeswebui and /var/log/hermeswebui and grants
@@ -30,7 +35,8 @@ StateDirectoryMode=0711
 LogsDirectory=hermeswebui
 LogsDirectoryMode=0750
 
-# The portable runtime, both venvs and the agent live under /var/lib/hermeswebui
+# The portable runtime and the single application venv (webui wheels +
+# agent deps + editable agent source) live under /var/lib/hermeswebui
 # (StateDirectory is implicitly writable despite ProtectSystem=strict). User
 # workspaces may live on TOS volumes (Volume1/Volume2..., "-" tolerates absence).
 ReadWritePaths=-/Volume1 -/Volume2

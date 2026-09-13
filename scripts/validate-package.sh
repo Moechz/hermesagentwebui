@@ -130,7 +130,10 @@ for name, p in wlock['packages'].items():
         if not w:
             err(f'wheels.lock: {name} missing wheel for {arch}')
             continue
-        if 'manylinux' not in w['file'] or not re.match(SHA_RE_STR, w['sha256']):
+        # pure-python universal wheels (py3-none-any) are arch-independent
+        # and legal for both trees; platform wheels must be manylinux.
+        if ('manylinux' not in w['file'] and 'py3-none-any' not in w['file']) \
+                or not re.match(SHA_RE_STR, w['sha256']):
             err(f'wheels.lock: {name} {arch} wheel malformed')
 reqs = open(os.path.join(P, 'agent-core-requirements.txt'), encoding='utf-8').read()
 if '--hash=sha256:' not in reqs:
@@ -149,7 +152,7 @@ except py_compile.PyCompileError as e:
 if '\r\n' in open(boot, 'rb').read().decode('utf-8', 'replace'):
     err('bootstrap has CRLF endings')
 launcher = open(os.path.join(T, 'hermeswebui.in'), encoding='utf-8').read()
-for must in ['hermeswebui-bootstrap --check', 'venvs/webui/bin/python3',
+for must in ['hermeswebui-bootstrap --check', 'venvs/app/bin/python3',
              'HERMES_WEBUI_AGENT_DIR']:
     if must.split(' --')[0] not in launcher:
         err(f'launcher missing: {must}')

@@ -68,9 +68,12 @@ def main() -> None:
             "size": ag["size"],
             "dest": "hermes/hermes-agent",
         },
+        # Keep in sync with packaging/templates/components.json.in (pip
+        # block is literal there; verified by device measurement 2026-09-13:
+        # TUNA ~700KB/s vs PyPI ~25KB/s on the target market network).
         "pip": {
-            "index_url": "https://pypi.org/simple",
-            "fallback_index_url": "https://pypi.tuna.tsinghua.edu.cn/simple",
+            "index_url": "https://pypi.tuna.tsinghua.edu.cn/simple",
+            "fallback_index_url": "https://pypi.org/simple",
         },
     }
     with open(args.out, "w", encoding="utf-8") as f:

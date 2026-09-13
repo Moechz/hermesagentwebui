@@ -20,7 +20,7 @@
     "dest": "hermes/hermes-agent"
   },
   "pip": {
-    "index_url": "https://pypi.org/simple",
-    "fallback_index_url": "https://pypi.tuna.tsinghua.edu.cn/simple"
+    "index_url": "https://pypi.tuna.tsinghua.edu.cn/simple",
+    "fallback_index_url": "https://pypi.org/simple"
   }
 }
