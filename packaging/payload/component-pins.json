@@ -11,7 +11,7 @@
       },
       "aarch64": {
         "file": "cpython-3.12.14+20260901-aarch64-unknown-linux-gnu-install_only.tar.gz",
-        "sha256": null,
+        "sha256": "b61b856c3e1a4fc65b8f6e6b0495ef975dd0924f90c59f3ea61b38a079173b84",
         "size": 83541077
       }
     }
@@ -21,8 +21,8 @@
     "version": "0.21.2",
     "tag": "v2026.9.11",
     "file": "hermes-agent-v2026.9.11.tar.gz",
-    "sha256": null,
-    "size": null
+    "sha256": "bf45fc6c40ad770e30dfa7677ee6804a24be1a7eab768b283a0883c64662d76e",
+    "size": 70477661
   },
-  "notes": "null = pending: hash not yet verified end-to-end (partial download observed once). generate-manifest.py refuses null unless --allow-pending; hermeswebui-bootstrap refuses null always."
+  "notes": "All hashes measured end-to-end 2026-09-13 (device download + tar validation + sha256). aarch64/x86_64 sizes match the GitHub release manifest exactly. Release-upload copies staged under dist/assets/ (untracked)."
 }

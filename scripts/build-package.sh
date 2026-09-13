@@ -78,29 +78,48 @@ stage_app() {
 }
 
 stage_wheels() {
-  # <dst> <platform> : download + verify the vendored webui wheels.
+  # <dst> <platform> : download + verify the vendored webui wheels (cached
+  # under dist/wheel-cache/<plat>; retried up to 3 times per wheel).
   local dst="$1" plat="$2"
   local wheels="$dst/usr/local/hermeswebui/wheels"
-  mkdir -p "$wheels"
-  python3 - "$PAYLOAD/wheels.lock" "$plat" "$wheels" <<'PY'
-import hashlib, json, os, sys, urllib.request
-lock, plat, out = sys.argv[1:4]
+  local cache="$ROOT/.cache/wheels/$plat"
+  mkdir -p "$wheels" "$cache"
+  python3 - "$PAYLOAD/wheels.lock" "$plat" "$wheels" "$cache" <<'PY'
+import hashlib, json, os, sys, time, urllib.request
+lock, plat, out, cache = sys.argv[1:5]
 pkgs = json.load(open(lock))["packages"]
 reqs = []
 for name, p in pkgs.items():
     w = p["wheels"][plat]
-    dest = os.path.join(out, w["file"])
-    h = hashlib.sha256(); got = 0
-    with urllib.request.urlopen(w["url"], timeout=120) as r, open(dest + ".part", "wb") as f:
-        while True:
-            c = r.read(1 << 20)
-            if not c: break
-            got += len(c); h.update(c); f.write(c)
-    if got != w["size"] or h.hexdigest() != w["sha256"]:
-        raise SystemExit(f"wheel mismatch: {w['file']}")
-    os.replace(dest + ".part", dest)
+    cached = os.path.join(cache, w["file"])
+    if not os.path.exists(cached):
+        for attempt in range(1, 4):
+            try:
+                h = hashlib.sha256(); got = 0
+                with urllib.request.urlopen(w["url"], timeout=180) as r, open(cached + ".part", "wb") as f:
+                    while True:
+                        c = r.read(1 << 20)
+                        if not c: break
+                        got += len(c); h.update(c); f.write(c)
+                if got != w["size"] or h.hexdigest() != w["sha256"]:
+                    # Transient CDN truncation/corruption is common; retry
+                    # with a fresh download (a real tamper fails all 3).
+                    raise RuntimeError(
+                        f"integrity mismatch got={got}/{h.hexdigest()[:12]}")
+                os.replace(cached + ".part", cached)
+                break
+            except Exception as e:
+                if os.path.exists(cached + ".part"):
+                    os.remove(cached + ".part")
+                if attempt == 3:
+                    raise SystemExit(f"wheel failed after 3 tries: {w['file']}: {e}")
+                print(f"  retry {attempt} for {w['file']}: {e}")
+                time.sleep(5)
     print(f"  wheel ok: {w['file']}")
     reqs.append(f"{name}=={p['version']}")
+for f in os.listdir(cache):
+    if f.endswith(".whl"):
+        import shutil; shutil.copy2(os.path.join(cache, f), os.path.join(out, f))
 with open(os.path.join(out, "requirements.txt"), "w") as f:
     f.write("\n".join(reqs) + "\n")
 PY
