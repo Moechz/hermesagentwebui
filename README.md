@@ -1,34 +1,46 @@
 # hermes-agent-webui (TOS packaging)
 
-将上游 [hermes-webui](https://github.com/nesquena/hermes-webui)（Hermes
-Agent 的 Python + 原生 JS 网页界面）封装为 **TerraMaster TOS 7 应用**
-（Deb 包，App Center 安装），目标是上架官方应用商店。
+Packages the upstream [hermes-webui](https://github.com/nesquena/hermes-webui)
+(a Python + vanilla-JS web interface for the Hermes Agent) as a **TerraMaster
+TOS 7 application** (Deb package, App Center install), targeting publication
+to the official TerraMaster App Store.
 
-本仓库是**打包/适配层**：不 fork 上游源码；上游以嵌套仓库形式放在
-`upstream/hermes-webui/`（被 gitignore）。
+This repository is a **packaging/adaptation layer**: it does not fork or
+rewrite upstream source. Upstream lives as a nested, ignored clone under
+`upstream/hermes-webui/` and is pinned to a release tag.
 
-## 目录结构
+## Layout
 
 ```text
-AGENTS.md / HANDOFF.md     会话/交接入口（新会话先读）
-upstream/hermes-webui/     上游浅克隆（不跟踪）
-packaging/templates/       TOS 元数据与打包模板（骨架）
-scripts/                   构建/校验脚本（骨架）
-docs/                      TASK_STATE / DESIGN_DECISIONS / CHANGELOG
+AGENTS.md / HANDOFF.md     session/handoff entry points (read first)
+upstream/hermes-webui/     pinned upstream clone (tag exp-v0.52.302, untracked)
+packaging/templates/       TOS metadata, systemd unit, lifecycle scripts, controls
+packaging/payload/         component pins, locked wheels/requirements, bootstrap template
+packaging/assets/          app icon (hermeswebui.svg) + store PNGs
+scripts/                   build / validate / manifest automation
+docs/                      TASK_STATE / REQUIREMENTS / DESIGN_DECISIONS / CHANGELOG
+                           + official TOS developer docs mirror (docs/official/)
+dist/                      build artifacts (generated, never committed)
 ```
 
-## 快速上手
+## Quick start
 
 ```bash
-# 更新上游（本机 GitHub 仅 SSH 可达）
-git -C upstream/hermes-webui pull
-
-# 查看当前状态与下一步
-#   → 读 docs/TASK_STATE.md
+./scripts/validate-package.sh     # official-rule checks over templates (macOS ok)
+./scripts/build-package.sh        # stage dual-arch trees; version from component-pins.json
+                                  # (dpkg-deb itself runs on Linux only)
 ```
 
-## 状态
+Debian control/package versions and the app's runtime version all track the
+pinned upstream release tag (`exp-v0.52.302` → package version `0.52.302`,
+decision D-012). The build refuses to run unless the upstream clone sits
+exactly on the pinned tag.
 
-`0.0.0` 初始化。打包工作未开始；当前最关键的开放问题是 TOS 7 真机的
-Python 运行时可用性与 Hermes Agent 本体的安装方式，
-详见 `docs/TASK_STATE.md` §5。
+## Status
+
+`0.52.302` (matches upstream tag exp-v0.52.302). Payload staging, first-start
+bootstrap, and an end-to-end device validation (install → bootstrap → server
+on 0.0.0.0:8787) are complete on an x86_64 TOS 7 device. Remaining before
+store submission: on-device App Center registration check for the External
+Open (new tab) launch mode, Release asset upload (needs token), aarch64
+build, uninstall/purge semantics. See `docs/TASK_STATE.md` for details.

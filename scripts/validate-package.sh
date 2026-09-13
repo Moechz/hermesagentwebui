@@ -79,6 +79,25 @@ for need in official_14:
     if need not in sections:
         err(f'official minimum language missing: {need}')
 
+# Official Appendix F key set; review standards require keys complete and
+# name/descript non-empty (our policy: all five non-empty in every node).
+required_keys = ['name', 'auth', 'descript', 'release_note', 'important']
+for chunk in lang.split('[')[1:]:
+    sec = chunk.split(']', 1)[0]
+    body = chunk.split(']', 1)[1]
+    kv = dict(re.findall(r'^([a-z_]+) = "(.*)"$', body, re.M))
+    for key in required_keys:
+        if key not in kv:
+            err(f'lang [{sec}] missing key: {key}')
+        elif not kv[key].strip():
+            err(f'lang [{sec}] empty value: {key}')
+lang_auths = set(re.findall(r'^auth = "(.*)"$', lang, re.M))
+for a in lang_auths:
+    if a != 'Nous Research':
+        err(f'lang auth unexpected: {a!r} (expected Nous Research)')
+if len(lang_auths) != 1:
+    err('lang auth not uniform across sections')
+
 blocks = re.split(r'^\[[a-z]{2}-[a-z]{2}\]$', lang, flags=re.M)[1:]
 keys_needed = ['name', 'auth', 'descript', 'release_note', 'important']
 auths = set()
