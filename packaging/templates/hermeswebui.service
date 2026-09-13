@@ -1,0 +1,53 @@
+[Unit]
+Description=Hermes Agent WebUI for TOS 7
+Documentation=https://github.com/Moechz/hermeswebui
+After=network.target network-online.target
+Wants=network-online.target
+StartLimitBurst=5
+StartLimitIntervalSec=60
+
+[Service]
+Type=simple
+User=hermeswebui
+Group=hermeswebui
+WorkingDirectory=/usr/local/hermeswebui
+ExecStart=/usr/local/hermeswebui/bin/hermeswebui
+Environment=PYTHONUNBUFFERED=1
+Environment=HERMES_WEBUI_HOST=0.0.0.0
+Environment=HERMES_WEBUI_PORT=8787
+Environment=HERMES_HOME=/var/lib/hermeswebui/hermes
+Environment=HERMES_WEBUI_STATE_DIR=/var/lib/hermeswebui/hermes/webui
+TimeoutStartSec=60
+TimeoutStopSec=15
+KillMode=control-group
+LimitNOFILE=65535
+
+# systemd creates /var/lib/hermeswebui and /var/log/hermeswebui and grants
+# write access despite ProtectSystem=strict (StateDirectory/LogsDirectory
+# are implicitly added to the writable set).
+StateDirectory=hermeswebui
+StateDirectoryMode=0711
+LogsDirectory=hermeswebui
+LogsDirectoryMode=0750
+
+# Portable runtime unpacks/byte-compiles under APP_HOME; user workspaces may
+# live on TOS volumes (Volume1/Volume2..., "-" prefix tolerates absence).
+ReadWritePaths=/usr/local/hermeswebui/runtime -/Volume1 -/Volume2
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictNamespaces=true
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+# MemoryDenyWriteExecute is intentionally NOT set: CPython and the Hermes
+# Agent's native/ML dependencies require writable+executable memory mappings.
+
+[Install]
+WantedBy=multi-user.target

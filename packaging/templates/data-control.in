@@ -1,0 +1,10 @@
+Package: hermeswebui
+Version: __VERSION__
+Architecture: all
+Section: web
+Priority: optional
+Maintainer: Moechz <zhoucaven@163.com>
+Depends: hermeswebui-service (= __VERSION__)
+Description: Hermes Agent WebUI App Center metadata
+ Static TOS 7 App Center metadata (config.ini, app.lang, icon) for the
+ hermeswebui service package. Dual-package data deb; contains no binaries.

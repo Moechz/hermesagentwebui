@@ -1,0 +1,31 @@
+#!/bin/sh
+# hermeswebui service launcher (staged as /usr/local/hermeswebui/bin/hermeswebui).
+# Runs the upstream hermes-webui server on the portable Python runtime.
+set -eu
+
+APP_HOME=/usr/local/hermeswebui
+PYTHON="$APP_HOME/runtime/python/bin/python3"
+APP_ENTRY="$APP_HOME/app/server.py"
+
+# Bind all interfaces so the TOS desktop iframe (client-side, opens
+# http://${ip}:8787) can reach the app from LAN clients. Access control is
+# the WebUI password set during first-run onboarding (REQUIREMENTS §5.1,
+# upstream F-10). Q3 residual risk tracked in docs/TASK_STATE.md.
+export HERMES_WEBUI_HOST="${HERMES_WEBUI_HOST:-0.0.0.0}"
+export HERMES_WEBUI_PORT="${HERMES_WEBUI_PORT:-8787}"
+export HERMES_HOME="${HERMES_HOME:-/var/lib/hermeswebui/hermes}"
+export HERMES_WEBUI_STATE_DIR="${HERMES_WEBUI_STATE_DIR:-$HERMES_HOME/webui}"
+export PYTHONUNBUFFERED=1
+
+# TODO(D-007/D-010) first-start bootstrap: before exec, verify the runtime
+# and agent components against $APP_HOME/manifests/components.json
+# (pinned URLs + SHA-256, shipped inside this package) and fetch any missing
+# component. On mismatch or fetch failure: readable error to stderr/journal,
+# exit non-zero, no silent degradation. Fetch must happen here (first service
+# start), never in lifecycle scripts (F-15-1).
+if [ ! -x "$PYTHON" ]; then
+  echo "hermeswebui: portable Python runtime missing; first-start bootstrap not implemented yet" >&2
+  exit 1
+fi
+
+exec "$PYTHON" "$APP_ENTRY"

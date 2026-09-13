@@ -1,0 +1,12 @@
+Package: hermeswebui
+Version: __VERSION__
+Architecture: __DEB_ARCH__
+Section: web
+Priority: optional
+Maintainer: Moechz <zhoucaven@163.com>
+Depends: systemd, ca-certificates
+Description: Hermes Agent WebUI for TOS 7 (single-package manual install)
+ Web interface for the Hermes Agent: chat with full CLI parity, sessions,
+ workspace browsing, profiles and first-run onboarding. Python runtime and
+ agent components are provisioned at first service start from a pinned,
+ SHA-256-verified manifest (D-007/D-010).

@@ -1,0 +1,121 @@
+#!/bin/bash
+# Validate hermeswebui packaging templates against the official rules
+# mirrored in docs/official/ (review-standards automated checks, cicd-guide
+# validation script, package-specification 4.x). Runs on macOS and Linux.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+T="$ROOT/packaging/templates"
+A="$ROOT/packaging/assets"
+
+python3 - "$T" "$A" <<'PY'
+import json, os, re, sys
+
+T, A = sys.argv[1], sys.argv[2]
+errors, notes = [], []
+
+def err(msg): errors.append(msg)
+
+# --- config.ini ---------------------------------------------------------
+cfg_path = os.path.join(T, 'config.ini')
+raw = open(cfg_path, 'rb').read()
+if raw.startswith(b'\xef\xbb\xbf'):
+    err('config.ini has BOM')
+if b'\r\n' in raw:
+    err('config.ini has CRLF line endings')
+cfg = json.loads(raw.decode('utf-8'))
+
+required = ['id', 'icon', 'publisher', 'exec', 'version', 'low_version',
+            'category', 'depend', 'platform', 'application_type', 'user',
+            'all_user_display', 'allow_open_in_mobile']
+for f in required:
+    assert f in cfg, f'Missing required field: {f}'
+if cfg['application_type'] == 'deb-TarGz':
+    for f in ('system_id', 'package'):
+        assert f in cfg, f'deb-TarGz must have {f}'
+if 'type' in cfg and 'open_path' in cfg:
+    err('type and open_path cannot coexist')
+if len(cfg['category']) > 3:
+    err('category exceeds maximum of 3')
+if '${ip}' not in cfg['path']:
+    err('path must use the ${ip} placeholder')
+if cfg['id'] != cfg['system_id'] or cfg['id'] != cfg['package']:
+    err('id/system_id/package must match')
+if cfg['version'] != '__VERSION__':
+    err('config.ini version must be the __VERSION__ placeholder here')
+if cfg.get('type') != 'iframe' and cfg.get('type') is not None:
+    notes.append(f"config.ini type={cfg['type']} (reference used iframe)")
+if cfg['type'] == 'iframe' and cfg['path'].startswith('http'):
+    notes.append('URL-form path with type=iframe: validated only on-device '
+                 '(Rsync Backup used a relative path); see TASK_STATE open question')
+
+# --- hermeswebui.lang ---------------------------------------------------
+lang_path = os.path.join(T, 'hermeswebui.lang')
+lraw = open(lang_path, 'rb').read()
+if lraw.startswith(b'\xef\xbb\xbf'):
+    err('lang file has BOM')
+if b'\r\n' in lraw:
+    err('lang file has CRLF line endings')
+lang = lraw.decode('utf-8')
+
+expected_23 = ['ar-sa', 'cs-cz', 'de-de', 'en-us', 'es-es', 'fr-fr', 'he-il',
+               'hu-hu', 'id-id', 'it-it', 'ja-jp', 'ko-kr', 'nb-no', 'nl-nl',
+               'pl-pl', 'pt-pt', 'ru-ru', 'sv-se', 'th-th', 'tr-tr', 'vi-vn',
+               'zh-cn', 'zh-hk']
+official_14 = ['zh-cn', 'zh-hk', 'en-us', 'fr-fr', 'de-de', 'it-it', 'es-es',
+               'hu-hu', 'ja-jp', 'ko-kr', 'pl-pl', 'ru-ru', 'tr-tr', 'pt-pt']
+sections = re.findall(r'^\[([a-z]{2}-[a-z]{2})\]$', lang, re.M)
+if sorted(sections) != sorted(expected_23):
+    missing = set(expected_23) - set(sections)
+    extra = set(sections) - set(expected_23)
+    err(f'lang sections mismatch: missing={missing or "-"} extra={extra or "-"}')
+for need in official_14:
+    if need not in sections:
+        err(f'official minimum language missing: {need}')
+
+blocks = re.split(r'^\[[a-z]{2}-[a-z]{2}\]$', lang, flags=re.M)[1:]
+keys_needed = ['name', 'auth', 'descript', 'release_note', 'important']
+for name, block in zip(sections, blocks):
+    for k in keys_needed:
+        m = re.search(rf'^{k} = "(.*)"$', block, re.M)
+        if not m or not m.group(1).strip():
+            err(f'[{name}] key {k} missing or empty')
+
+# --- icon ----------------------------------------------------------------
+icon = os.path.join(A, 'hermeswebui.svg')
+if cfg['icon'] != '/images/icons/hermeswebui.svg':
+    err('config.ini icon path mismatch')
+svg = open(icon, encoding='utf-8').read()
+if '<svg' not in svg or 'viewBox' not in svg:
+    err('icon is not a valid SVG with viewBox')
+
+# --- lifecycle / unit / controls ----------------------------------------
+net_re = re.compile(r'^[^#]*\b(apt(-get)? install|pip3? install|curl|wget)\b', re.M)
+for script in ['postinst', 'prerm', 'postrm', 'data-postinst']:
+    s = open(os.path.join(T, script), encoding='utf-8').read()
+    if '\r\n' in s:
+        err(f'{script}: CRLF endings')
+    if net_re.search(s):
+        err(f'{script}: network operation detected (official red line F-15-1)')
+unit = open(os.path.join(T, 'hermeswebui.service'), encoding='utf-8').read()
+for must in ['User=hermeswebui', 'Group=hermeswebui',
+             'StartLimitBurst=', 'StartLimitIntervalSec=',
+             'ProtectSystem=strict']:
+    if must not in unit:
+        err(f'systemd unit missing: {must}')
+if 'MemoryDenyWriteExecute=true' in unit:
+    err('unit sets MemoryDenyWriteExecute; Python/ML runtime needs W+X')
+for ctl in ['data-control.in', 'service-control.in', 'manual-control.in']:
+    c = open(os.path.join(T, ctl), encoding='utf-8').read()
+    if '__VERSION__' not in c:
+        err(f'{ctl}: missing __VERSION__ placeholder')
+
+for n in notes:
+    print(f'NOTE: {n}')
+if errors:
+    for e in errors:
+        print(f'FAIL: {e}')
+    sys.exit(1)
+print(f'OK: config.ini fields, {len(sections)} lang sections, icon, '
+      'lifecycle scripts, systemd unit, controls all valid.')
+PY

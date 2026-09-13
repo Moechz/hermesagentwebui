@@ -1,0 +1,160 @@
+[en-us]
+name = "Hermes Agent WebUI"
+auth = "Moechz"
+descript = "Web interface for the Hermes Agent on TOS 7: chat with full CLI parity, session and workspace browsing, profiles, and first-run onboarding."
+release_note = "Initial beta: TOS 7 App Center packaging of hermes-webui. The first start downloads the pinned Python runtime and Hermes Agent components, then opens the onboarding wizard to set an access password and model providers."
+important = "The first launch needs internet access to download runtime components. Set an access password during onboarding; conversations and API keys stay on your NAS."
+
+[de-de]
+name = "Hermes Agent WebUI"
+auth = "Moechz"
+descript = "Web interface for the Hermes Agent on TOS 7: chat with full CLI parity, session and workspace browsing, profiles, and first-run onboarding."
+release_note = "Initial beta: TOS 7 App Center packaging of hermes-webui. The first start downloads the pinned Python runtime and Hermes Agent components, then opens the onboarding wizard to set an access password and model providers."
+important = "The first launch needs internet access to download runtime components. Set an access password during onboarding; conversations and API keys stay on your NAS."
+
+[fr-fr]
+name = "Hermes Agent WebUI"
+auth = "Moechz"
+descript = "Web interface for the Hermes Agent on TOS 7: chat with full CLI parity, session and workspace browsing, profiles, and first-run onboarding."
+release_note = "Initial beta: TOS 7 App Center packaging of hermes-webui. The first start downloads the pinned Python runtime and Hermes Agent components, then opens the onboarding wizard to set an access password and model providers."
+important = "The first launch needs internet access to download runtime components. Set an access password during onboarding; conversations and API keys stay on your NAS."
+
+[es-es]
+name = "Hermes Agent WebUI"
+auth = "Moechz"
+descript = "Web interface for the Hermes Agent on TOS 7: chat with full CLI parity, session and workspace browsing, profiles, and first-run onboarding."
+release_note = "Initial beta: TOS 7 App Center packaging of hermes-webui. The first start downloads the pinned Python runtime and Hermes Agent components, then opens the onboarding wizard to set an access password and model providers."
+important = "The first launch needs internet access to download runtime components. Set an access password during onboarding; conversations and API keys stay on your NAS."
+
+[it-it]
+name = "Hermes Agent WebUI"
+auth = "Moechz"
+descript = "Web interface for the Hermes Agent on TOS 7: chat with full CLI parity, session and workspace browsing, profiles, and first-run onboarding."
+release_note = "Initial beta: TOS 7 App Center packaging of hermes-webui. The first start downloads the pinned Python runtime and Hermes Agent components, then opens the onboarding wizard to set an access password and model providers."
+important = "The first launch needs internet access to download runtime components. Set an access password during onboarding; conversations and API keys stay on your NAS."
+
+[tr-tr]
+name = "Hermes Agent WebUI"
+auth = "Moechz"
+descript = "Web interface for the Hermes Agent on TOS 7: chat with full CLI parity, session and workspace browsing, profiles, and first-run onboarding."
+release_note = "Initial beta: TOS 7 App Center packaging of hermes-webui. The first start downloads the pinned Python runtime and Hermes Agent components, then opens the onboarding wizard to set an access password and model providers."
+important = "The first launch needs internet access to download runtime components. Set an access password during onboarding; conversations and API keys stay on your NAS."
+
+[pt-pt]
+name = "Hermes Agent WebUI"
+auth = "Moechz"
+descript = "Web interface for the Hermes Agent on TOS 7: chat with full CLI parity, session and workspace browsing, profiles, and first-run onboarding."
+release_note = "Initial beta: TOS 7 App Center packaging of hermes-webui. The first start downloads the pinned Python runtime and Hermes Agent components, then opens the onboarding wizard to set an access password and model providers."
+important = "The first launch needs internet access to download runtime components. Set an access password during onboarding; conversations and API keys stay on your NAS."
+
+[hu-hu]
+name = "Hermes Agent WebUI"
+auth = "Moechz"
+descript = "Web interface for the Hermes Agent on TOS 7: chat with full CLI parity, session and workspace browsing, profiles, and first-run onboarding."
+release_note = "Initial beta: TOS 7 App Center packaging of hermes-webui. The first start downloads the pinned Python runtime and Hermes Agent components, then opens the onboarding wizard to set an access password and model providers."
+important = "The first launch needs internet access to download runtime components. Set an access password during onboarding; conversations and API keys stay on your NAS."
+
+[nb-no]
+name = "Hermes Agent WebUI"
+auth = "Moechz"
+descript = "Web interface for the Hermes Agent on TOS 7: chat with full CLI parity, session and workspace browsing, profiles, and first-run onboarding."
+release_note = "Initial beta: TOS 7 App Center packaging of hermes-webui. The first start downloads the pinned Python runtime and Hermes Agent components, then opens the onboarding wizard to set an access password and model providers."
+important = "The first launch needs internet access to download runtime components. Set an access password during onboarding; conversations and API keys stay on your NAS."
+
+[sv-se]
+name = "Hermes Agent WebUI"
+auth = "Moechz"
+descript = "Web interface for the Hermes Agent on TOS 7: chat with full CLI parity, session and workspace browsing, profiles, and first-run onboarding."
+release_note = "Initial beta: TOS 7 App Center packaging of hermes-webui. The first start downloads the pinned Python runtime and Hermes Agent components, then opens the onboarding wizard to set an access password and model providers."
+important = "The first launch needs internet access to download runtime components. Set an access password during onboarding; conversations and API keys stay on your NAS."
+
+[nl-nl]
+name = "Hermes Agent WebUI"
+auth = "Moechz"
+descript = "Web interface for the Hermes Agent on TOS 7: chat with full CLI parity, session and workspace browsing, profiles, and first-run onboarding."
+release_note = "Initial beta: TOS 7 App Center packaging of hermes-webui. The first start downloads the pinned Python runtime and Hermes Agent components, then opens the onboarding wizard to set an access password and model providers."
+important = "The first launch needs internet access to download runtime components. Set an access password during onboarding; conversations and API keys stay on your NAS."
+
+[cs-cz]
+name = "Hermes Agent WebUI"
+auth = "Moechz"
+descript = "Web interface for the Hermes Agent on TOS 7: chat with full CLI parity, session and workspace browsing, profiles, and first-run onboarding."
+release_note = "Initial beta: TOS 7 App Center packaging of hermes-webui. The first start downloads the pinned Python runtime and Hermes Agent components, then opens the onboarding wizard to set an access password and model providers."
+important = "The first launch needs internet access to download runtime components. Set an access password during onboarding; conversations and API keys stay on your NAS."
+
+[pl-pl]
+name = "Hermes Agent WebUI"
+auth = "Moechz"
+descript = "Web interface for the Hermes Agent on TOS 7: chat with full CLI parity, session and workspace browsing, profiles, and first-run onboarding."
+release_note = "Initial beta: TOS 7 App Center packaging of hermes-webui. The first start downloads the pinned Python runtime and Hermes Agent components, then opens the onboarding wizard to set an access password and model providers."
+important = "The first launch needs internet access to download runtime components. Set an access password during onboarding; conversations and API keys stay on your NAS."
+
+[ru-ru]
+name = "Hermes Agent WebUI"
+auth = "Moechz"
+descript = "Web interface for the Hermes Agent on TOS 7: chat with full CLI parity, session and workspace browsing, profiles, and first-run onboarding."
+release_note = "Initial beta: TOS 7 App Center packaging of hermes-webui. The first start downloads the pinned Python runtime and Hermes Agent components, then opens the onboarding wizard to set an access password and model providers."
+important = "The first launch needs internet access to download runtime components. Set an access password during onboarding; conversations and API keys stay on your NAS."
+
+[zh-cn]
+name = "Hermes Agent WebUI"
+auth = "Moechz"
+descript = "在 TOS 7 上运行 Hermes Agent 的网页界面：与 CLI 完全对等的对话、会话与工作区浏览、配置档案，以及首次运行引导。"
+release_note = "首个测试版：hermes-webui 的 TOS 7 应用中心封装。首次启动会按锁定清单联网下载 Python 运行时与 Hermes Agent 组件，随后进入引导向导设置访问密码与模型服务商。"
+important = "首次启动需要联网下载运行组件。请在引导向导中设置访问密码；对话记录与 API 密钥仅保存在本机。"
+
+[zh-hk]
+name = "Hermes Agent WebUI"
+auth = "Moechz"
+descript = "Web interface for the Hermes Agent on TOS 7: chat with full CLI parity, session and workspace browsing, profiles, and first-run onboarding."
+release_note = "Initial beta: TOS 7 App Center packaging of hermes-webui. The first start downloads the pinned Python runtime and Hermes Agent components, then opens the onboarding wizard to set an access password and model providers."
+important = "The first launch needs internet access to download runtime components. Set an access password during onboarding; conversations and API keys stay on your NAS."
+
+[ja-jp]
+name = "Hermes Agent WebUI"
+auth = "Moechz"
+descript = "Web interface for the Hermes Agent on TOS 7: chat with full CLI parity, session and workspace browsing, profiles, and first-run onboarding."
+release_note = "Initial beta: TOS 7 App Center packaging of hermes-webui. The first start downloads the pinned Python runtime and Hermes Agent components, then opens the onboarding wizard to set an access password and model providers."
+important = "The first launch needs internet access to download runtime components. Set an access password during onboarding; conversations and API keys stay on your NAS."
+
+[ko-kr]
+name = "Hermes Agent WebUI"
+auth = "Moechz"
+descript = "Web interface for the Hermes Agent on TOS 7: chat with full CLI parity, session and workspace browsing, profiles, and first-run onboarding."
+release_note = "Initial beta: TOS 7 App Center packaging of hermes-webui. The first start downloads the pinned Python runtime and Hermes Agent components, then opens the onboarding wizard to set an access password and model providers."
+important = "The first launch needs internet access to download runtime components. Set an access password during onboarding; conversations and API keys stay on your NAS."
+
+[vi-vn]
+name = "Hermes Agent WebUI"
+auth = "Moechz"
+descript = "Web interface for the Hermes Agent on TOS 7: chat with full CLI parity, session and workspace browsing, profiles, and first-run onboarding."
+release_note = "Initial beta: TOS 7 App Center packaging of hermes-webui. The first start downloads the pinned Python runtime and Hermes Agent components, then opens the onboarding wizard to set an access password and model providers."
+important = "The first launch needs internet access to download runtime components. Set an access password during onboarding; conversations and API keys stay on your NAS."
+
+[id-id]
+name = "Hermes Agent WebUI"
+auth = "Moechz"
+descript = "Web interface for the Hermes Agent on TOS 7: chat with full CLI parity, session and workspace browsing, profiles, and first-run onboarding."
+release_note = "Initial beta: TOS 7 App Center packaging of hermes-webui. The first start downloads the pinned Python runtime and Hermes Agent components, then opens the onboarding wizard to set an access password and model providers."
+important = "The first launch needs internet access to download runtime components. Set an access password during onboarding; conversations and API keys stay on your NAS."
+
+[th-th]
+name = "Hermes Agent WebUI"
+auth = "Moechz"
+descript = "Web interface for the Hermes Agent on TOS 7: chat with full CLI parity, session and workspace browsing, profiles, and first-run onboarding."
+release_note = "Initial beta: TOS 7 App Center packaging of hermes-webui. The first start downloads the pinned Python runtime and Hermes Agent components, then opens the onboarding wizard to set an access password and model providers."
+important = "The first launch needs internet access to download runtime components. Set an access password during onboarding; conversations and API keys stay on your NAS."
+
+[ar-sa]
+name = "Hermes Agent WebUI"
+auth = "Moechz"
+descript = "Web interface for the Hermes Agent on TOS 7: chat with full CLI parity, session and workspace browsing, profiles, and first-run onboarding."
+release_note = "Initial beta: TOS 7 App Center packaging of hermes-webui. The first start downloads the pinned Python runtime and Hermes Agent components, then opens the onboarding wizard to set an access password and model providers."
+important = "The first launch needs internet access to download runtime components. Set an access password during onboarding; conversations and API keys stay on your NAS."
+
+[he-il]
+name = "Hermes Agent WebUI"
+auth = "Moechz"
+descript = "Web interface for the Hermes Agent on TOS 7: chat with full CLI parity, session and workspace browsing, profiles, and first-run onboarding."
+release_note = "Initial beta: TOS 7 App Center packaging of hermes-webui. The first start downloads the pinned Python runtime and Hermes Agent components, then opens the onboarding wizard to set an access password and model providers."
+important = "The first launch needs internet access to download runtime components. Set an access password during onboarding; conversations and API keys stay on your NAS."
