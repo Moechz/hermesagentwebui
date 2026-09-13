@@ -81,11 +81,16 @@ for need in official_14:
 
 blocks = re.split(r'^\[[a-z]{2}-[a-z]{2}\]$', lang, flags=re.M)[1:]
 keys_needed = ['name', 'auth', 'descript', 'release_note', 'important']
+auths = set()
 for name, block in zip(sections, blocks):
     for k in keys_needed:
         m = re.search(rf'^{k} = "(.*)"$', block, re.M)
         if not m or not m.group(1).strip():
             err(f'[{name}] key {k} missing or empty')
+        if k == 'auth' and m:
+            auths.add(m.group(1).strip())
+if auths != {cfg['publisher']}:
+    err(f'lang auth {auths} != config.ini publisher "{cfg["publisher"]}"')
 
 # --- icon ----------------------------------------------------------------
 icon = os.path.join(A, 'hermeswebui.svg')

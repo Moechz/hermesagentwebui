@@ -106,9 +106,9 @@ important = "首次启动需要联网下载运行组件。请在引导向导中�
 [zh-hk]
 name = "Hermes Agent WebUI"
 auth = "Moechz"
-descript = "Web interface for the Hermes Agent on TOS 7: chat with full CLI parity, session and workspace browsing, profiles, and first-run onboarding."
-release_note = "Initial beta: TOS 7 App Center packaging of hermes-webui. The first start downloads the pinned Python runtime and Hermes Agent components, then opens the onboarding wizard to set an access password and model providers."
-important = "The first launch needs internet access to download runtime components. Set an access password during onboarding; conversations and API keys stay on your NAS."
+descript = "在 TOS 7 上執行 Hermes Agent 的網頁介面：與 CLI 完全對等的對話、工作階段與工作區瀏覽、設定檔，以及首次執行引導。"
+release_note = "首個測試版：hermes-webui 的 TOS 7 應用中心封裝。首次啟動會按鎖定清單連線下載 Python 執行環境與 Hermes Agent 元件，隨後進入引導精靈設定存取密碼與模型供應商。"
+important = "首次啟動需要連線下載執行元件。請在引導精靈中設定存取密碼；對話記錄與 API 金鑰僅保存在本機。"
 
 [ja-jp]
 name = "Hermes Agent WebUI"
