@@ -79,6 +79,17 @@ def component_url(manifest: dict, section: str) -> str:
 
 def download(url: str, dest: str, sha256: str, size: int) -> None:
     os.makedirs(os.path.dirname(dest), exist_ok=True)
+    # Fast path: an already-present file with the pinned size and hash
+    # (pre-seeded, or left by an earlier run that failed at a later step)
+    # is used as-is; never re-download verified bytes.
+    if os.path.exists(dest) and os.path.getsize(dest) == size:
+        h = hashlib.sha256()
+        with open(dest, "rb") as f:
+            for chunk in iter(lambda: f.read(CHUNK), b""):
+                h.update(chunk)
+        if h.hexdigest() == sha256:
+            log(f"using verified local file {os.path.basename(dest)}")
+            return
     tmp = dest + ".part"
     h = hashlib.sha256()
     got = 0
@@ -102,12 +113,14 @@ def download(url: str, dest: str, sha256: str, size: int) -> None:
     os.replace(tmp, dest)
 
 
-def _safe_target(dest_root: str, name: str, strip: int) -> str:
+def _safe_target(dest_root: str, name: str, strip: int):
     parts = name.split("/")
     if strip:
         parts = parts[strip:]
-        if not parts:
-            raise BootError(f"tar member fully stripped: {name}")
+    # The archive's own root entry (e.g. "name" or "name/") is consumed
+    # entirely by strip; it is not an escape, just skip it.
+    if not parts or parts == [""]:
+        return None
     if name.startswith("/") or ".." in parts:
         raise BootError(f"unsafe tar member: {name}")
     return os.path.join(dest_root, *parts)
@@ -119,6 +132,8 @@ def safe_extract(tar_path: str, dest_root: str, strip: int = 0) -> None:
     with tarfile.open(tar_path, "r:gz") as tf:
         for member in tf:
             target = _safe_target(dest_root, member.name, strip)
+            if target is None:
+                continue
             real_parent = os.path.realpath(os.path.dirname(target))
             if not real_parent.startswith(root_real + os.sep) and real_parent != root_real:
                 raise BootError(f"tar member escapes destination: {member.name}")
