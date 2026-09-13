@@ -52,6 +52,11 @@ def main() -> None:
         "app_version": args.version,
         "arch": args.arch,
         "release_base": "https://github.com/Moechz/hermeswebui/releases/download/v" + args.version,
+        "webui": {
+            "tag": pins["webui"]["tag"],
+            "version": pins["webui"]["version"],
+            "date": pins["webui"]["date"],
+        },
         "runtime": {
             "python": pins["runtime"]["python"],
             "pbs_tag": pins["runtime"]["pbs_tag"],

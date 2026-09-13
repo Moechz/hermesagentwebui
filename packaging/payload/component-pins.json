@@ -1,5 +1,13 @@
 {
   "schema": 1,
+  "webui": {
+    "tag": "exp-v0.52.302",
+    "version": "0.52.302",
+    "commit": "e2ce040",
+    "date": "2026-09-12",
+    "channel": "experimental",
+    "note": "package version tracks this upstream release tag (D-012); agent pin v2026.9.11 is the same release train (adjacent dates; webui imports agent internals in-process)"
+  },
   "runtime": {
     "python": "3.12.14",
     "pbs_tag": "20260901",

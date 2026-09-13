@@ -17,7 +17,11 @@ PAYLOAD="$ROOT/packaging/payload"
 UPSTREAM="$ROOT/upstream/hermes-webui"
 DIST="$ROOT/dist"
 APP_ID=hermeswebui
-VERSION="${1:-0.0.1}"
+VERSION="${1:-}"
+if [ -z "$VERSION" ]; then
+  # Default: track the pinned upstream webui release tag (D-012).
+  VERSION=$(python3 -c "import json;print(json.load(open('$PAYLOAD/component-pins.json'))['webui']['version'])")
+fi
 
 PLATFORMS="x86_64 aarch64"   # TOS platform names (config.ini platform)
 debarch_for() {
@@ -65,6 +69,17 @@ stage_app() {
   # <dst> : copy the upstream runtime surface (server + api + static).
   local dst="$1"
   local app="$dst/usr/local/hermeswebui/app"
+  # Guard: the clone must sit exactly at the pinned tag (D-012).
+  local pinned_tag webui_ver
+  pinned_tag=$(python3 -c "import json;print(json.load(open('$PAYLOAD/component-pins.json'))['webui']['tag'])")
+  webui_ver=$(python3 -c "import json;print(json.load(open('$PAYLOAD/component-pins.json'))['webui']['version'])")
+  local describe
+  describe=$(git -C "$UPSTREAM" describe --tags 2>/dev/null || true)
+  if [ "$describe" != "$pinned_tag" ]; then
+    echo "build: upstream clone is at '${describe:-untagged}' but pins expect '$pinned_tag'" >&2
+    echo "      fix: git -C upstream/hermes-webui fetch --depth 1 origin tag $pinned_tag && git -C upstream/hermes-webui checkout $pinned_tag" >&2
+    exit 1
+  fi
   mkdir -p "$app"
   for item in server.py api static requirements.txt LICENSE README.md; do
     if [ -e "$UPSTREAM/$item" ]; then
@@ -74,6 +89,10 @@ stage_app() {
       exit 1
     fi
   done
+  # The staged copy has no .git; write the release-workflow artifact so the
+  # server's version detection (api/updates.py order 2) reports the tag
+  # instead of 'unknown'.
+  printf "__version__ = 'v%s'\n" "$webui_ver" > "$app/api/_version.py"
   find "$app" -name '__pycache__' -type d -prune -exec rm -rf {} + 2>/dev/null || true
 }
 

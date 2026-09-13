@@ -90,7 +90,9 @@ for name, block in zip(sections, blocks):
         if k == 'auth' and m:
             auths.add(m.group(1).strip())
 if auths != {cfg['publisher']}:
-    err(f'lang auth {auths} != config.ini publisher "{cfg["publisher"]}"')
+    notes.append(f'lang auth {auths} != config.ini publisher '
+                 f'"{cfg["publisher"]}" (expected: auth credits upstream '
+                 f'authors, publisher is the packager)')
 
 # --- icon ----------------------------------------------------------------
 icon = os.path.join(A, 'hermeswebui.svg')
