@@ -19,9 +19,13 @@ Runs on the TOS system Python (3.10, stdlib only) before the WebUI starts:
          (TUNA primary, PyPI fallback — identical hashes)
        - the agent source itself as an editable install (upstream's
          setup.py only supports editable installs)
-  5. record progress in a state file; every step is idempotent and safe to
-     retry. Any failure exits non-zero with a readable message; the systemd
-     unit's restart policy drives retries. No silent degradation, ever.
+  5. converge provisioned state to the deb's pins: every service start
+     diffs state.json against the in-deb manifest + lock fingerprints
+     and re-provisions exactly the sections whose pins changed (D-014
+     — device upgrades need no manual wiping). HERMES_HOME user data
+     (sessions, memory, credentials) is never touched. Any failure
+     exits non-zero with a readable message; the systemd unit's restart
+     policy drives retries. No silent degradation, ever.
 
 Security invariants:
   - downloads only from https://github.com (manifest release_base prefix)
@@ -251,11 +255,102 @@ def run(argv, **kw) -> subprocess.CompletedProcess:
     return subprocess.run(argv, **kw)
 
 
+def _file_fingerprint(path: str) -> str:
+    try:
+        return file_sha256(path)
+    except OSError:
+        return "-"
+
+
+def deb_fingerprints() -> dict:
+    """SHA-256 fingerprints of the lock files shipped inside the deb.
+
+    A new deb that changes any of them (or the manifest pins) makes the
+    next service start re-provision exactly the affected sections
+    (D-014). Hashing a lock file is milliseconds, so --check on every
+    start stays fast.
+    """
+    return {
+        "wheels_req": _file_fingerprint(
+            os.path.join(APP_HOME, "wheels", "requirements.txt")),
+        "agent_core_req": _file_fingerprint(
+            os.path.join(APP_HOME, "agent", "agent-core-requirements.txt")),
+        "lazy_extras": _file_fingerprint(
+            os.path.join(APP_HOME, "agent", "lazy-extras.lock")),
+    }
+
+
+def plan_sections(m: dict, st: State, fp: dict) -> list:
+    """Diff provisioned state against the deb's pins (D-014).
+
+    Returns sections needing (re-)provisioning, in execution order. The
+    deb's manifest and lock fingerprints are authoritative; a changed
+    pin re-provisions that section plus everything whose artifacts it
+    destroys (a recreated venv wipes installed deps and the editable
+    install; a replaced agent tree invalidates the editable install).
+    HERMES_HOME user data is never touched.
+    """
+    rt_sha = m["runtime"]["sha256"]
+    ag_sha = m["agent"]["sha256"]
+    todo = []
+    rt_rec = st.data.get("runtime", {})
+    rt_py = os.path.join(STATE, m["runtime"]["dest"], "bin", "python3")
+    if not (st.done("runtime") and rt_rec.get("sha256") == rt_sha
+            and os.path.exists(rt_py)):
+        if st.done("runtime"):
+            log(f"runtime pin changed ({rt_rec.get('sha256', '-')[:12]}… "
+                f"-> {rt_sha[:12]}…): re-provisioning")
+        todo.append("runtime")
+    venv_rec = st.data.get("app_venv", {})
+    pip_bin = os.path.join(STATE, "venvs", "app", "bin", "pip")
+    if not (st.done("app_venv")
+            and "runtime" not in todo
+            and venv_rec.get("runtime_sha") == rt_sha
+            and venv_rec.get("wheels_sha") == fp["wheels_req"]
+            and os.path.exists(pip_bin)):
+        if st.done("app_venv"):
+            log("app venv outdated (runtime or webui wheels changed): "
+                "recreating")
+        todo.append("app_venv")
+    ag_rec = st.data.get("agent_src", {})
+    ag_dir = os.path.join(STATE, m["agent"]["dest"])
+    if not (st.done("agent_src") and ag_rec.get("sha256") == ag_sha
+            and os.path.isdir(ag_dir)):
+        if st.done("agent_src"):
+            log(f"agent pin changed ({ag_rec.get('sha256', '-')[:12]}… "
+                f"-> {ag_sha[:12]}…): re-provisioning")
+        todo.append("agent_src")
+    deps_rec = st.data.get("agent_deps", {})
+    # Deps live in the venv, not in the agent source tree — an agent-only
+    # change does NOT reinstall them; only a venv recreation does.
+    if not (st.done("agent_deps")
+            and "app_venv" not in todo
+            and deps_rec.get("req_sha") == fp["agent_core_req"]):
+        if st.done("agent_deps"):
+            log("agent dependencies lock changed (or venv recreated): "
+                "reinstalling")
+        todo.append("agent_deps")
+    extras_rec = st.data.get("lazy_extras", {})
+    if not (st.done("lazy_extras")
+            and "app_venv" not in todo
+            and extras_rec.get("req_sha") == fp["lazy_extras"]):
+        if st.done("lazy_extras"):
+            log("lazy extras lock changed (or venv recreated): reinstalling")
+        todo.append("lazy_extras")
+    # The editable install (pth + PEP660 finder) points into the agent
+    # source tree and lives in the venv — redo it when either changes;
+    # dependency-package changes alone do not affect it.
+    if not (st.done("agent_editable")
+            and "app_venv" not in todo and "agent_src" not in todo):
+        if st.done("agent_editable"):
+            log("agent source or venv changed: reinstalling editable")
+        todo.append("agent_editable")
+    return todo
+
+
 def ensure_runtime(m: dict, st: State, downloads: str) -> str:
     dest = os.path.join(STATE, m["runtime"]["dest"])
     rt_sha = m["runtime"]["sha256"]
-    if st.done("runtime") and os.path.exists(os.path.join(dest, "bin", "python3")):
-        return os.path.join(dest, "bin", "python3")
     log(f"provisioning portable CPython {m['runtime']['python']} ...")
     tarball = os.path.join(downloads, m["runtime"]["file"])
     download(component_url(m, "runtime"), tarball, rt_sha, int(m["runtime"]["size"]))
@@ -277,8 +372,8 @@ def ensure_runtime(m: dict, st: State, downloads: str) -> str:
     return os.path.join(dest, "bin", "python3")
 
 
-def ensure_app_venv(rt_python: str, st: State) -> str:
-    """Create the single application venv and install the offline wheels.
+def ensure_app_venv(m: dict, rt_python: str, st: State, fp: dict) -> str:
+    """(Re)create the single application venv and install the offline wheels.
 
     Upstream's server imports run_agent.AIAgent in-process
     (api/agent_runtime.py), so the webui server and the agent share ONE
@@ -286,28 +381,29 @@ def ensure_app_venv(rt_python: str, st: State) -> str:
     agent source all live in $STATE/venvs/app.
     """
     venv = os.path.join(STATE, "venvs", "app")
-    pip = os.path.join(venv, "bin", "pip")
-    if st.done("app_venv") and os.path.exists(pip):
-        return os.path.join(venv, "bin", "python3")
     log("creating app venv (offline wheels) ...")
+    if os.path.exists(venv):
+        # Recreate clean: stale site-packages and __editable__ finders
+        # from a previous provisioning must not leak into the new one.
+        shutil.rmtree(venv)
     r = run([rt_python, "-m", "venv", venv], capture_output=True, text=True)
     if r.returncode != 0:
         raise BootError(f"venv creation failed: {r.stderr.strip()}")
+    pip = os.path.join(venv, "bin", "pip")
     req = os.path.join(APP_HOME, "wheels", "requirements.txt")
     r = run([pip, "install", "--no-index", "--find-links",
              os.path.join(APP_HOME, "wheels"), "-r", req],
             capture_output=True, text=True)
     if r.returncode != 0:
         raise BootError(f"webui wheels install failed: {r.stderr.strip()[-2000:]}")
-    st.mark("app_venv")
+    st.mark("app_venv", runtime_sha=m["runtime"]["sha256"],
+            wheels_sha=fp["wheels_req"])
     return os.path.join(venv, "bin", "python3")
 
 
 def ensure_agent(m: dict, st: State, downloads: str) -> str:
     dest = os.path.join(STATE, m["agent"]["dest"])
     ag_sha = m["agent"]["sha256"]
-    if st.done("agent_src") and os.path.isdir(dest):
-        return dest
     log(f"provisioning hermes-agent {m['agent']['version']} source ...")
     tarball = os.path.join(downloads, m["agent"]["file"])
     download(component_url(m, "agent"), tarball, ag_sha, int(m["agent"]["size"]))
@@ -340,18 +436,16 @@ def install_with_fallback(pip: str, args: list, indexes: list) -> None:
     raise BootError(f"pip install failed: {last}")
 
 
-def ensure_agent_deps(m: dict, st: State) -> None:
-    if st.done("agent_deps"):
-        return
+def ensure_agent_deps(m: dict, st: State, fp: dict) -> None:
     pip = os.path.join(STATE, "venvs", "app", "bin", "pip")
     log("installing agent locked dependencies (hashed) ...")
     req = os.path.join(APP_HOME, "agent", "agent-core-requirements.txt")
     install_with_fallback(pip, ["--require-hashes", "-r", req],
                           [m["pip"]["index_url"], m["pip"]["fallback_index_url"]])
-    st.mark("agent_deps")
+    st.mark("agent_deps", req_sha=fp["agent_core_req"])
 
 
-def ensure_lazy_extras(m: dict, st: State) -> None:
+def ensure_lazy_extras(m: dict, st: State, fp: dict) -> None:
     """Pre-install the agent's runtime lazy-install extras (tts.edge etc.).
 
     The agent's tool registry lazily pip-installs optional feature deps on
@@ -360,27 +454,23 @@ def ensure_lazy_extras(m: dict, st: State) -> None:
     (agent-core + extras, versions unified) removes the stall. Non-fatal:
     TTS is optional, the agent falls back to lazy install at runtime."""
     mark = "lazy_extras"
-    if st.done(mark):
-        return
     pip = os.path.join(STATE, "venvs", "app", "bin", "pip")
     req = os.path.join(APP_HOME, "agent", "lazy-extras.lock")
     if not os.path.exists(req):
         log("lazy-extras lock missing, skipping (runtime lazy install remains)")
-        st.mark(mark)
+        st.mark(mark, req_sha=fp["lazy_extras"])
         return
     log("installing lazy extras: edge-tts (hashed) ...")
     try:
         install_with_fallback(pip, ["--require-hashes", "-r", req],
                               [m["pip"]["index_url"], m["pip"]["fallback_index_url"]])
-        st.mark(mark)
+        st.mark(mark, req_sha=fp["lazy_extras"])
     except BootError as e:
         log(f"WARNING: lazy extras install failed (optional; will retry next "
             f"start, runtime lazy install remains): {e}")
 
 
 def ensure_agent_editable(m: dict, agent_dir: str, st: State) -> None:
-    if st.done("agent_editable"):
-        return
     pip = os.path.join(STATE, "venvs", "app", "bin", "pip")
     log("installing hermes-agent (editable) ...")
     # hermes-agent's setup.py refuses regular wheel/sdist builds by design
@@ -394,38 +484,44 @@ def ensure_agent_editable(m: dict, agent_dir: str, st: State) -> None:
 
 
 def check(m: dict, st: State) -> bool:
-    ok = (
-        st.done("runtime")
-        and os.path.exists(os.path.join(STATE, m["runtime"]["dest"], "bin", "python3"))
-        and st.done("app_venv")
-        and os.path.exists(os.path.join(STATE, "venvs", "app", "bin", "python3"))
-        and st.done("agent_src")
-        and os.path.isdir(os.path.join(STATE, m["agent"]["dest"]))
-        and st.done("agent_deps")
-        and st.done("lazy_extras")
-        and st.done("agent_editable")
-    )
-    return ok
+    """True only when every section is provisioned AND current vs pins."""
+    return not plan_sections(m, st, deb_fingerprints())
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true",
-                    help="exit 0 only if every component is provisioned")
+                    help="exit 0 only if every component is provisioned "
+                         "and matches the deb's pinned versions")
     args = ap.parse_args()
     try:
         m = load_manifest()
         st = State(os.path.join(STATE, "bootstrap", "state.json"))
+        fp = deb_fingerprints()
         if args.check:
             return 0 if check(m, st) else 1
+        todo = plan_sections(m, st, fp)
+        if not todo:
+            log("all components provisioned and current")
+            return 0
         downloads = os.path.join(STATE, "downloads")
         os.makedirs(downloads, exist_ok=True)
-        rt_python = ensure_runtime(m, st, downloads)
-        ensure_app_venv(rt_python, st)
-        agent_dir = ensure_agent(m, st, downloads)
-        ensure_agent_deps(m, st)
-        ensure_lazy_extras(m, st)
-        ensure_agent_editable(m, agent_dir, st)
+        if "runtime" in todo:
+            rt_python = ensure_runtime(m, st, downloads)
+        else:
+            rt_python = os.path.join(STATE, m["runtime"]["dest"], "bin", "python3")
+        if "app_venv" in todo:
+            rt_python = ensure_app_venv(m, rt_python, st, fp)
+        if "agent_src" in todo:
+            agent_dir = ensure_agent(m, st, downloads)
+        else:
+            agent_dir = os.path.join(STATE, m["agent"]["dest"])
+        if "agent_deps" in todo:
+            ensure_agent_deps(m, st, fp)
+        if "lazy_extras" in todo:
+            ensure_lazy_extras(m, st, fp)
+        if "agent_editable" in todo:
+            ensure_agent_editable(m, agent_dir, st)
         log("all components provisioned")
         return 0
     except BootError as e:
