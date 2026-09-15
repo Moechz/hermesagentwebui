@@ -204,7 +204,11 @@ stage_service_tree() {
 build_deb() {
   # <tree> <output.deb>
   if [ "$(uname)" = "Linux" ]; then
-    dpkg-deb --root-owner-group -b "$1" "$2"
+    # TOS App Center's package parser does not understand zstd members
+    # (dpkg does). Match the validated metube layout: control.tar.gz +
+    # data.tar.xz (--no-uniform-compression keeps the control member as
+    # classic gzip while data uses xz).
+    dpkg-deb --root-owner-group --no-uniform-compression -Zxz -b "$1" "$2"
   else
     echo "  (macOS: staging only, dpkg-deb skipped) $2"
   fi
