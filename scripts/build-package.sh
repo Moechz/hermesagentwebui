@@ -174,11 +174,17 @@ stage_agent_payload() {
 
 stage_common_metadata() {
   # <dst> : destination package root; metadata shared by data/manual debs.
+  # TOS App Center parses TOS metadata from /usr/local/<appid>/ inside the
+  # deb's data tar — NOT from the deb root. Proven by both validated
+  # references: metube (/usr/local/metubedownload/config.ini) and Rsync
+  # Backup (/usr/local/rsyncbackup/config.ini). Root placement made the
+  # App Center manual installer fail with "parse failed" (user-verified).
   local dst="$1"
-  mkdir -p "$dst/images/icons"
-  cp "$TEMPLATES/config.ini" "$dst/config.ini"
-  cp "$TEMPLATES/hermeswebui.lang" "$dst/hermeswebui.lang"
-  cp "$ASSETS/hermeswebui.svg" "$dst/images/icons/hermeswebui.svg"
+  mkdir -p "$dst/usr/local/hermeswebui/images/icons"
+  cp "$TEMPLATES/config.ini" "$dst/usr/local/hermeswebui/config.ini"
+  cp "$TEMPLATES/hermeswebui.lang" "$dst/usr/local/hermeswebui/hermeswebui.lang"
+  cp "$ASSETS/hermeswebui.svg" \
+     "$dst/usr/local/hermeswebui/images/icons/hermeswebui.svg"
 }
 
 stage_service_tree() {
@@ -241,7 +247,7 @@ for plat in $PLATFORMS; do
   cp "$TEMPLATES/data-postinst" "$DATA/DEBIAN/postinst"
   chmod 0755 "$DATA/DEBIAN/postinst"
   subst "$DATA/DEBIAN/control" - -        # data deb: Architecture all
-  subst "$DATA/config.ini" "$plat" - deb-TarGz   # dual-package archive mode
+  subst "$DATA/usr/local/hermeswebui/config.ini" "$plat" - deb-TarGz
   # NOTE: the data deb config.ini must match the submitted platform even
   # though the deb itself is Architecture: all (official naming/checks).
   to_lf $(find "$SVC" "$DATA" -type f \
@@ -256,6 +262,9 @@ for plat in $PLATFORMS; do
   # <appid>_<platform>.tar.gz containing <appid>.deb (data, renamed plain)
   # + <appid>-service_<version>_<debarch>.deb (source). This is what the
   # App Center manual-install page parses; a bare deb fails parsing.
+  # (Linux only — needs the built debs; macOS stages trees only.)
+  if [ -f "$DIST/hermeswebui-data_${VERSION}_all_${plat}.deb" ] \
+     && [ -f "$DIST/hermeswebui-service_${VERSION}_${darch}.deb" ]; then
   BUNDLE="$DIST/bundle-$plat"
   rm -rf "$BUNDLE"
   mkdir -p "$BUNDLE"
@@ -268,6 +277,7 @@ for plat in $PLATFORMS; do
   (cd "$DIST" && shasum -a 256 "hermeswebui_${plat}.tar.gz" \
     > "hermeswebui_${plat}.tar.gz.sha256" 2>/dev/null || \
     sha256sum "hermeswebui_${plat}.tar.gz" > "hermeswebui_${plat}.tar.gz.sha256")
+  fi
 
   # Single-package manual-install deb (same content, one package).
   MAN="$DIST/stage/${plat}/hermeswebui-manual"
@@ -275,7 +285,7 @@ for plat in $PLATFORMS; do
   # (reference convention: service deb keeps the -service suffix).
   stage_service_tree "$MAN" "$plat" "$darch" "$TEMPLATES/manual-control.in"
   stage_common_metadata "$MAN"
-  subst "$MAN/config.ini" "$plat" - deb   # single-package mode (App Center local install)
+  subst "$MAN/usr/local/hermeswebui/config.ini" "$plat" - deb
   to_lf $(find "$MAN" -type f \
            \( -name '*.sh' -o -name '*.py' -o -name '*.ini' \
               -o -name '*.lang' -o -name '*.service' -o -name '*.conf' \
