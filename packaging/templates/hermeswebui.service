@@ -17,6 +17,11 @@ Environment=HERMES_WEBUI_HOST=0.0.0.0
 Environment=HERMES_WEBUI_PORT=8787
 Environment=HERMES_HOME=/var/lib/hermeswebui/hermes
 Environment=HERMES_WEBUI_STATE_DIR=/var/lib/hermeswebui/hermes/webui
+# Runtime lazy-installs (agent optional features, e.g. image-gen extras)
+# inherit these: TUNA primary keeps turns from stalling on slow pypi.org
+# routes (same mirror choice as the bootstrap agent-deps install, D-010).
+Environment=PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+Environment=UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple
 TimeoutStartSec=60
 TimeoutStopSec=15
 KillMode=control-group

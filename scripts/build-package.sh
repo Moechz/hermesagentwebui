@@ -170,6 +170,8 @@ stage_agent_payload() {
   mkdir -p "$dst/usr/local/hermeswebui/agent"
   cp "$PAYLOAD/agent-core-requirements.txt" \
      "$dst/usr/local/hermeswebui/agent/agent-core-requirements.txt"
+  cp "$PAYLOAD/lazy-extras.lock" \
+     "$dst/usr/local/hermeswebui/agent/lazy-extras.lock"
 }
 
 stage_common_metadata() {

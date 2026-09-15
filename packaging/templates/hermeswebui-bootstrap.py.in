@@ -287,6 +287,33 @@ def ensure_agent_deps(m: dict, st: State) -> None:
     st.mark("agent_deps")
 
 
+def ensure_lazy_extras(m: dict, st: State) -> None:
+    """Pre-install the agent's runtime lazy-install extras (tts.edge etc.).
+
+    The agent's tool registry lazily pip-installs optional feature deps on
+    first use; on a slow network that stalls the first chat turn by minutes
+    (user-observed: 98s for edge-tts). Pre-installing the hashed union lock
+    (agent-core + extras, versions unified) removes the stall. Non-fatal:
+    TTS is optional, the agent falls back to lazy install at runtime."""
+    mark = "lazy_extras"
+    if st.done(mark):
+        return
+    pip = os.path.join(STATE, "venvs", "app", "bin", "pip")
+    req = os.path.join(APP_HOME, "agent", "lazy-extras.lock")
+    if not os.path.exists(req):
+        log("lazy-extras lock missing, skipping (runtime lazy install remains)")
+        st.mark(mark)
+        return
+    log("installing lazy extras: edge-tts (hashed) ...")
+    try:
+        install_with_fallback(pip, ["--require-hashes", "-r", req],
+                              [m["pip"]["index_url"], m["pip"]["fallback_index_url"]])
+        st.mark(mark)
+    except BootError as e:
+        log(f"WARNING: lazy extras install failed (optional; will retry next "
+            f"start, runtime lazy install remains): {e}")
+
+
 def ensure_agent_editable(m: dict, agent_dir: str, st: State) -> None:
     if st.done("agent_editable"):
         return
@@ -311,6 +338,7 @@ def check(m: dict, st: State) -> bool:
         and st.done("agent_src")
         and os.path.isdir(os.path.join(STATE, m["agent"]["dest"]))
         and st.done("agent_deps")
+        and st.done("lazy_extras")
         and st.done("agent_editable")
     )
     return ok
@@ -332,6 +360,7 @@ def main() -> int:
         ensure_app_venv(rt_python, st)
         agent_dir = ensure_agent(m, st, downloads)
         ensure_agent_deps(m, st)
+        ensure_lazy_extras(m, st)
         ensure_agent_editable(m, agent_dir, st)
         log("all components provisioned")
         return 0
