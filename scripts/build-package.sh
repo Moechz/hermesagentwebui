@@ -10,6 +10,13 @@
 # the on-device bootstrap always refuses such manifests.
 set -euo pipefail
 
+# macOS bsdtar embeds file xattrs as AppleDouble ._ members; the TOS App
+# Center parser rejects deb/tar members it does not know ("package parse
+# failed"), and extracted ._ files re-enter debs built from transferred
+# trees. Guard every tar this script makes (validated Rsync Backup recipe:
+# build-local-manual-deb.sh uses COPYFILE_DISABLE=1).
+export COPYFILE_DISABLE=1
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TEMPLATES="$ROOT/packaging/templates"
 ASSETS="$ROOT/packaging/assets"
@@ -261,13 +268,24 @@ for plat in $PLATFORMS; do
               -o -name 'postinst' -o -name 'prerm' -o -name 'postrm' \
               -o -name 'hermeswebui' -o -name 'hermeswebui-bootstrap' \
               -o -name 'hermeswebui-provision' \))
+  # Hard guard: no macOS junk may ever enter a built package.
+  junk_guard() {
+    local found
+    found=$(find "$DIST/stage/$plat" \( -name '._*' -o -name '.DS_Store' \) \
+            -print -quit 2>/dev/null || true)
+    [ -z "$found" ] || { echo "FAIL: AppleDouble/junk file in stage tree: $found" >&2; exit 1; }
+  }
+  junk_guard
   build_deb "$SVC" "$DIST/hermeswebui-service_${VERSION}_${darch}.deb"
   build_deb "$DATA" "$DIST/hermeswebui-data_${VERSION}_all_${plat}.deb"
 
   # Store/App-Center dual-package archive (validated Rsync Backup recipe):
   # <appid>_<platform>.tar.gz containing <appid>.deb (data, renamed plain)
-  # + <appid>-service_<version>_<debarch>.deb (source). This is what the
-  # App Center manual-install page parses; a bare deb fails parsing.
+  # + <appid>-service_<version>_<debarch>.deb (source). Store submission
+  # archive shape (official Release asset naming, package-specification
+  # 4.3); the App Center manual-install page also accepts single debs —
+  # see the manual deb below (device-validated by the Rsync Backup
+  # project's single-package manual installs).
   # (Linux only — needs the built debs; macOS stages trees only.)
   if [ -f "$DIST/hermeswebui-data_${VERSION}_all_${plat}.deb" ] \
      && [ -f "$DIST/hermeswebui-service_${VERSION}_${darch}.deb" ]; then
@@ -298,7 +316,18 @@ for plat in $PLATFORMS; do
               -o -name 'postinst' -o -name 'prerm' -o -name 'postrm' \
               -o -name 'hermeswebui' -o -name 'hermeswebui-bootstrap' \
               -o -name 'hermeswebui-provision' \))
-  build_deb "$MAN" "$DIST/hermeswebui_${VERSION}_${darch}_manual.deb"
+  # Hard guard again: the manual tree was staged after the check above.
+  junk_guard
+  build_deb "$MAN" "$DIST/hermeswebui_${VERSION}_${plat}.deb"
+  # Manual-install deb naming follows the official pattern
+  # <app_id>_<platform>.deb (package-specification: platform token is the
+  # TOS platform name, never the deb arch). The local artifact keeps the
+  # version infix like the validated Rsync Backup manual packages
+  # (rsyncbackup_<version>_<platform>.deb); for Release uploads the
+  # publishing-process spec requires the bare <app_id>_<platform>.deb
+  # (version comes from Release metadata). "amd64" in the filename made
+  # the App Center manual-install page reject the package (device
+  # finding 2026-09-15).
 
   # Dual-mode submission archive: <app_id>_<platform>.tar.gz wrapping the
   # two debs (official Release asset naming, package-specification 4.3).
