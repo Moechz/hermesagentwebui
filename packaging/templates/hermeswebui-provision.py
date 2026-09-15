@@ -32,13 +32,43 @@ PORT = int(os.environ.get("HERMES_WEBUI_PORT", "8787"))
 HOST = os.environ.get("HERMES_WEBUI_HOST", "0.0.0.0")
 
 STAGES = [
-    ("runtime", "下载 Python 运行时 / Downloading Python runtime"),
-    ("app_venv", "准备应用环境 / Preparing application environment"),
-    ("agent_src", "下载 Hermes Agent / Downloading Hermes Agent"),
-    ("agent_deps", "安装依赖（清华镜像） / Installing dependencies (TUNA)"),
-    ("lazy_extras", "安装可选组件 / Installing optional components"),
-    ("agent_editable", "收尾 / Finalizing"),
+    ("runtime",
+     "下载 Python 运行时", "Downloading Python runtime"),
+    ("app_venv",
+     "准备应用环境", "Preparing application environment"),
+    ("agent_src",
+     "下载 Hermes Agent", "Downloading Hermes Agent"),
+    ("agent_deps",
+     "安装依赖（清华镜像）", "Installing dependencies (TUNA mirror)"),
+    ("lazy_extras",
+     "安装可选组件", "Installing optional components"),
+    ("agent_editable",
+     "收尾", "Finalizing"),
 ]
+
+# Single-language rendering (user directive 2026-09-15): the browser's
+# Accept-Language picks zh or en (default en — repo source locale norm).
+STRINGS = {
+    "zh": {
+        "title": "Hermes Agent WebUI — 首次装配中",
+        "sub": "首次启动需要从网络装配运行组件，本页每 3 秒自动刷新。",
+        "note": "慢网络下整个过程可能需要 10–20 分钟，请不要关闭本页；"
+                "完成后会自动进入应用。",
+        "log": "进度日志：",
+        "working": "进行中",
+        "downloading": "下载中",
+    },
+    "en": {
+        "title": "Hermes Agent WebUI — Provisioning",
+        "sub": "First start downloads runtime components; "
+               "this page refreshes itself every 3 seconds.",
+        "note": "On slow networks this can take 10–20 minutes. Please keep "
+                "this page open; the app opens automatically when ready.",
+        "log": "Progress log:",
+        "working": "working",
+        "downloading": "downloading",
+    },
+}
 
 
 def _marks():
@@ -74,10 +104,11 @@ def _expected_sizes():
 
 
 def _progress():
-    """Return (done_count, total, label, dl_percent, dl_text, log_tail)."""
+    """Return (done, total, zh_label, en_label, pct, dl_text, log_tail)."""
     marks = _marks()
-    done = sum(1 for key, _ in STAGES if key in marks)
-    label = STAGES[min(done, len(STAGES) - 1)][1]
+    done = sum(1 for key, _, _ in STAGES if key in marks)
+    idx = min(done, len(STAGES) - 1)
+    zh_label, en_label = STAGES[idx][1], STAGES[idx][2]
     expected = _expected_sizes()
     dl_percent, dl_text = None, ""
     parts = sorted(glob.glob(os.path.join(STATE, "downloads", "*.part")))
@@ -98,7 +129,7 @@ def _progress():
             log_tail = html.escape("".join(fh.readlines()[-6:]).strip())
     except Exception:
         pass
-    return done, len(STAGES), label, dl_percent, dl_text, log_tail
+    return done, len(STAGES), zh_label, en_label, dl_percent, dl_text, log_tail
 
 
 PAGE = """<!DOCTYPE html>
@@ -134,15 +165,12 @@ PAGE = """<!DOCTYPE html>
 <body>
 <div class="card">
  <h1>%(title)s</h1>
- <p class="sub">首次启动需要从网络装配运行组件，本页每 3 秒自动刷新。<br>
- First start downloads runtime components; this page refreshes itself.</p>
+ <p class="sub">%(sub)s</p>
  <div class="stage">%(stage)s</div>
  <div class="bar"><div class="fill %(cls)s" style="width:%(width)s"></div></div>
  <p class="detail">%(detail)s · %(done)s/%(total)s</p>
  <div class="note">
-  慢网络下整个过程可能需要 10–20 分钟，请不要关闭本页；完成后会自动进入应用。<br>
-  On slow networks this can take 10–20 minutes. The app opens automatically
-  when ready. 进度日志 / log: <code>/var/lib/hermeswebui/bootstrap/last.log</code>
+  %(note)s<br>%(log)s <code>/var/lib/hermeswebui/bootstrap/last.log</code>
  </div>
 %(log_html)s
 </div>
@@ -154,6 +182,17 @@ PAGE = """<!DOCTYPE html>
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
+    def _lang(self):
+        """Pick 'zh' or 'en' from Accept-Language (first tag wins)."""
+        header = self.headers.get("Accept-Language", "")
+        for part in header.split(","):
+            tag = part.split(";")[0].strip().lower()
+            if tag.startswith("zh"):
+                return "zh"
+            if tag and tag != "*":
+                return "en"
+        return "en"
+
     def do_HEAD(self):
         self._page(head=True)
 
@@ -161,23 +200,29 @@ class Handler(BaseHTTPRequestHandler):
         self._page(head=False)
 
     def _page(self, head):
+        lang = self._lang()
+        s = STRINGS[lang]
         try:
-            done, total, label, pct, dl_text, log_tail = _progress()
+            done, total, zh_label, en_label, pct, dl_text, log_tail = _progress()
         except Exception:
-            done, total, label, pct, dl_text, log_tail = (
-                0, len(STAGES), STAGES[0][1], None, "", "")
+            done, total, zh_label, en_label, pct, dl_text, log_tail = (
+                0, len(STAGES), STAGES[0][1], STAGES[0][2], None, "", "")
+        label = zh_label if lang == "zh" else en_label
         if pct is None:
             width, cls = "45%", "ind"
-            detail = "进行中 / working"
+            detail = s["working"]
         else:
             width, cls = "%.1f%%" % pct, ""
-            detail = "下载中 / downloading %s (%.0f%%)" % (dl_text, pct)
+            detail = "%s %s (%.0f%%)" % (s["downloading"], dl_text, pct)
         body = PAGE % {
-            "title": "Hermes Agent WebUI — 首次装配中 / Provisioning",
+            "title": s["title"],
+            "sub": s["sub"],
+            "note": s["note"],
+            "log": s["log"],
             "stage": html.escape(label),
             "width": width,
             "cls": cls,
-            "detail": detail,
+            "detail": html.escape(detail),
             "done": done,
             "total": total,
             "log_html": (
