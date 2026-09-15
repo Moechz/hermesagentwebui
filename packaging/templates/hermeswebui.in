@@ -9,6 +9,8 @@ set -eu
 APP_HOME=/usr/local/hermeswebui
 STATE=/var/lib/hermeswebui
 BOOTSTRAP="$APP_HOME/bin/hermeswebui-bootstrap"
+PROVISION="$APP_HOME/bin/hermeswebui-provision"
+BOOTLOG="$STATE/bootstrap/last.log"
 SYSTEM_PYTHON=/usr/bin/python3
 WEBUI_PYTHON="$STATE/venvs/app/bin/python3"
 APP_ENTRY="$APP_HOME/app/server.py"
@@ -26,12 +28,26 @@ export HERMES_WEBUI_AGENT_DIR="${HERMES_WEBUI_AGENT_DIR:-$STATE/hermes/hermes-ag
 export PYTHONUNBUFFERED=1
 
 if ! "$SYSTEM_PYTHON" "$BOOTSTRAP" --check >/dev/null 2>&1; then
-  # Long-running provisioning (Type=simple: this does not gate systemd's
-  # start timeout; the port opens once the WebUI actually binds).
-  "$SYSTEM_PYTHON" "$BOOTSTRAP" || {
-    echo "hermeswebui: first-start provisioning failed; see journal for details" >&2
+  # First-start provisioning. A stdlib-only placeholder page binds the
+  # port while components download (10-20 min on slow networks), so users
+  # see live progress instead of "connection refused" (user-reported
+  # confusion; D-013). Bootstrap output also lands in bootstrap/last.log
+  # for the placeholder and for post-hoc debugging (TOS user accounts
+  # often cannot read the systemd journal).
+  mkdir -p "$STATE/bootstrap"
+  "$SYSTEM_PYTHON" "$PROVISION" &
+  PROV_PID=$!
+  if "$SYSTEM_PYTHON" "$BOOTSTRAP" >"$BOOTLOG" 2>&1; then
+    cat "$BOOTLOG" || true
+  else
+    cat "$BOOTLOG" || true
+    echo "hermeswebui: first-start provisioning failed; systemd will retry (Restart=on-failure)" >&2
+    kill "$PROV_PID" 2>/dev/null || true
+    wait "$PROV_PID" 2>/dev/null || true
     exit 1
-  }
+  fi
+  kill "$PROV_PID" 2>/dev/null || true
+  wait "$PROV_PID" 2>/dev/null || true
 fi
 
 exec "$WEBUI_PYTHON" "$APP_ENTRY"

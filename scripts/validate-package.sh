@@ -131,10 +131,13 @@ for script in ['postinst', 'prerm', 'postrm', 'data-postinst']:
         err(f'{script}: network operation detected (official red line F-15-1)')
 unit = open(os.path.join(T, 'hermeswebui.service'), encoding='utf-8').read()
 for must in ['User=hermeswebui', 'Group=hermeswebui',
-             'StartLimitBurst=', 'StartLimitIntervalSec=',
+             'StartLimitIntervalSec=',
              'ProtectSystem=strict']:
     if must not in unit:
         err(f'systemd unit missing: {must}')
+if 'StartLimitIntervalSec=0' not in unit and 'StartLimitBurst=' not in unit:
+    # Either unlimited retries (interval=0) or an explicit burst cap.
+    err('systemd unit missing: StartLimitBurst= (or StartLimitIntervalSec=0)')
 if 'MemoryDenyWriteExecute=true' in unit:
     err('unit sets MemoryDenyWriteExecute; Python/ML runtime needs W+X')
 for ctl in ['data-control.in', 'service-control.in', 'manual-control.in']:

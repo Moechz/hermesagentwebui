@@ -3,8 +3,10 @@ Description=Hermes Agent WebUI for TOS 7
 Documentation=https://github.com/Moechz/hermeswebui
 After=network.target network-online.target
 Wants=network-online.target
-StartLimitBurst=5
-StartLimitIntervalSec=60
+# First-start provisioning may outlast several restart attempts on slow
+# networks (each retry resumes from the .part file); retry indefinitely so
+# a temporarily unreachable component mirror self-heals.
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple

@@ -204,6 +204,8 @@ stage_service_tree() {
   cp "$TEMPLATES/hermeswebui.in" "$dst/usr/local/hermeswebui/bin/hermeswebui"
   cp "$TEMPLATES/hermeswebui-bootstrap.py.in" \
      "$dst/usr/local/hermeswebui/bin/hermeswebui-bootstrap"
+  cp "$TEMPLATES/hermeswebui-provision.py" \
+     "$dst/usr/local/hermeswebui/bin/hermeswebui-provision"
   cp "$TEMPLATES/hermeswebui.service" \
      "$dst/usr/local/hermeswebui/init.d/hermeswebui.service"
   stage_app "$dst"
@@ -213,7 +215,8 @@ stage_service_tree() {
   subst "$dst/DEBIAN/control" - "$darch"
   chmod 0755 "$dst/DEBIAN/postinst" "$dst/DEBIAN/prerm" "$dst/DEBIAN/postrm" \
              "$dst/usr/local/hermeswebui/bin/hermeswebui" \
-             "$dst/usr/local/hermeswebui/bin/hermeswebui-bootstrap"
+             "$dst/usr/local/hermeswebui/bin/hermeswebui-bootstrap" \
+             "$dst/usr/local/hermeswebui/bin/hermeswebui-provision"
 }
 
 build_deb() {
@@ -256,7 +259,8 @@ for plat in $PLATFORMS; do
            \( -name '*.sh' -o -name '*.py' -o -name '*.ini' \
               -o -name '*.lang' -o -name '*.service' -o -name '*.conf' \
               -o -name 'postinst' -o -name 'prerm' -o -name 'postrm' \
-              -o -name 'hermeswebui' -o -name 'hermeswebui-bootstrap' \))
+              -o -name 'hermeswebui' -o -name 'hermeswebui-bootstrap' \
+              -o -name 'hermeswebui-provision' \))
   build_deb "$SVC" "$DIST/hermeswebui-service_${VERSION}_${darch}.deb"
   build_deb "$DATA" "$DIST/hermeswebui-data_${VERSION}_all_${plat}.deb"
 
@@ -292,7 +296,8 @@ for plat in $PLATFORMS; do
            \( -name '*.sh' -o -name '*.py' -o -name '*.ini' \
               -o -name '*.lang' -o -name '*.service' -o -name '*.conf' \
               -o -name 'postinst' -o -name 'prerm' -o -name 'postrm' \
-              -o -name 'hermeswebui' -o -name 'hermeswebui-bootstrap' \))
+              -o -name 'hermeswebui' -o -name 'hermeswebui-bootstrap' \
+              -o -name 'hermeswebui-provision' \))
   build_deb "$MAN" "$DIST/hermeswebui_${VERSION}_${darch}_manual.deb"
 
   # Dual-mode submission archive: <app_id>_<platform>.tar.gz wrapping the
