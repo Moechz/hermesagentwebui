@@ -252,6 +252,23 @@ for plat in $PLATFORMS; do
   build_deb "$SVC" "$DIST/hermeswebui-service_${VERSION}_${darch}.deb"
   build_deb "$DATA" "$DIST/hermeswebui-data_${VERSION}_all_${plat}.deb"
 
+  # Store/App-Center dual-package archive (validated Rsync Backup recipe):
+  # <appid>_<platform>.tar.gz containing <appid>.deb (data, renamed plain)
+  # + <appid>-service_<version>_<debarch>.deb (source). This is what the
+  # App Center manual-install page parses; a bare deb fails parsing.
+  BUNDLE="$DIST/bundle-$plat"
+  rm -rf "$BUNDLE"
+  mkdir -p "$BUNDLE"
+  cp "$DIST/hermeswebui-data_${VERSION}_all_${plat}.deb" "$BUNDLE/hermeswebui.deb"
+  cp "$DIST/hermeswebui-service_${VERSION}_${darch}.deb" "$BUNDLE/"
+  TARGZ="$DIST/hermeswebui_${plat}.tar.gz"
+  rm -f "$TARGZ" "$TARGZ.sha256"
+  LC_ALL=C tar -czf "$TARGZ" -C "$BUNDLE" \
+    hermeswebui.deb "hermeswebui-service_${VERSION}_${darch}.deb"
+  (cd "$DIST" && shasum -a 256 "hermeswebui_${plat}.tar.gz" \
+    > "hermeswebui_${plat}.tar.gz.sha256" 2>/dev/null || \
+    sha256sum "hermeswebui_${plat}.tar.gz" > "hermeswebui_${plat}.tar.gz.sha256")
+
   # Single-package manual-install deb (same content, one package).
   MAN="$DIST/stage/${plat}/hermeswebui-manual"
   # Single-package manual deb: identical payload, Package: hermeswebui
