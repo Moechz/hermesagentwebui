@@ -19,8 +19,9 @@ DIST="$ROOT/dist"
 APP_ID=hermeswebui
 VERSION="${1:-}"
 if [ -z "$VERSION" ]; then
-  # Default: track the pinned upstream webui release tag (D-012).
-  VERSION=$(python3 -c "import json;print(json.load(open('$PAYLOAD/component-pins.json'))['webui']['version'])")
+  # Default: upstream webui version + packaging sequence, e.g. 0.52.302-001
+  # (D-012: track the pinned upstream tag; -NNN is our rebuild counter).
+  VERSION=$(python3 -c "import json;p=json.load(open('$PAYLOAD/component-pins.json'));print(p['webui']['version']+'-'+p['packaging_seq'])")
 fi
 
 PLATFORMS="x86_64 aarch64"   # TOS platform names (config.ini platform)
@@ -48,11 +49,11 @@ PY
 }
 
 subst() {
-  # subst <file> <platform|-> <debarch|-> ; replaces placeholders in place.
-  local f="$1" plat="$2" darch="$3"
-  python3 - "$f" "$VERSION" "$plat" "$darch" <<'PY'
+  # subst <file> <platform|-> <debarch|-> <apptype|-> ; in-place replacement.
+  local f="$1" plat="$2" darch="$3" atype="${4:-}"
+  python3 - "$f" "$VERSION" "$plat" "$darch" "$atype" <<'PY'
 import sys
-f, ver, plat, darch = sys.argv[1:5]
+f, ver, plat, darch, atype = sys.argv[1:6]
 with open(f, encoding='utf-8') as fh:
     s = fh.read()
 s = s.replace('__VERSION__', ver)
@@ -60,6 +61,12 @@ if plat != '-':
     s = s.replace('__TOS_PLATFORM__', plat)
 if darch != '-':
     s = s.replace('__DEB_ARCH__', darch)
+if atype and atype != '-':
+    # Official application-types: "deb" = single-package mode (what the
+    # App Center local installer parses), "deb-TarGz" = dual-package
+    # archive mode (store submission). A single deb declaring deb-TarGz
+    # fails App Center parsing (user-verified on a second device).
+    s = s.replace('__APP_TYPE__', atype)
 with open(f, 'w', encoding='utf-8') as fh:
     fh.write(s)
 PY
@@ -234,7 +241,7 @@ for plat in $PLATFORMS; do
   cp "$TEMPLATES/data-postinst" "$DATA/DEBIAN/postinst"
   chmod 0755 "$DATA/DEBIAN/postinst"
   subst "$DATA/DEBIAN/control" - -        # data deb: Architecture all
-  subst "$DATA/config.ini" "$plat" -      # __TOS_PLATFORM__
+  subst "$DATA/config.ini" "$plat" - deb-TarGz   # dual-package archive mode
   # NOTE: the data deb config.ini must match the submitted platform even
   # though the deb itself is Architecture: all (official naming/checks).
   to_lf $(find "$SVC" "$DATA" -type f \
@@ -251,7 +258,7 @@ for plat in $PLATFORMS; do
   # (reference convention: service deb keeps the -service suffix).
   stage_service_tree "$MAN" "$plat" "$darch" "$TEMPLATES/manual-control.in"
   stage_common_metadata "$MAN"
-  subst "$MAN/config.ini" "$plat" -
+  subst "$MAN/config.ini" "$plat" - deb   # single-package mode (App Center local install)
   to_lf $(find "$MAN" -type f \
            \( -name '*.sh' -o -name '*.py' -o -name '*.ini' \
               -o -name '*.lang' -o -name '*.service' -o -name '*.conf' \
