@@ -6,7 +6,10 @@ Runs on the TOS system Python (3.10, stdlib only) before the WebUI starts:
   1. read the pinned component manifest shipped inside the deb
   2. fetch the portable CPython runtime and the Hermes Agent source from
      the application's own GitHub Release (single whitelisted origin),
-     verifying size and SHA-256 for every artifact
+     verifying size and SHA-256 for every artifact; downloads are
+     Range-resumable — a partial .part from a killed or timed-out attempt
+     (same run or a later service restart) continues from its byte offset
+     instead of restarting from zero
   3. unpack with hardened tar handling (no absolute paths, no traversal,
      no symlink escape, no device nodes)
   4. create the single application venv (upstream's server imports the
@@ -35,6 +38,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 import urllib.error
 import urllib.request
 
@@ -42,6 +46,12 @@ APP_HOME = os.environ.get("HWUI_APP_HOME", "/usr/local/hermeswebui")
 STATE = os.environ.get("HWUI_STATE", "/var/lib/hermeswebui")
 ALLOWED_HOST = "github.com"
 CHUNK = 1024 * 1024
+# In-process attempts per download; after the last one the bootstrap fails
+# and systemd's Restart=on-failure (unlimited, D-013) reruns it — resuming
+# from the kept .part file. Retries inside one run avoid a full unit
+# restart per network hiccup.
+DOWNLOAD_ATTEMPTS = 3
+RETRY_WAIT_S = 5  # backoff between attempts, multiplied by attempt number
 
 
 class BootError(Exception):
@@ -77,40 +87,94 @@ def component_url(manifest: dict, section: str) -> str:
     return url
 
 
+def file_sha256(path: str) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(CHUNK), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 def download(url: str, dest: str, sha256: str, size: int) -> None:
+    """Fetch url -> dest with size + SHA-256 verification and resume.
+
+    Integrity is always decided by a hash over the FULL file, so a corrupt
+    or tampered prefix can only ever fail verification, never pass it. An
+    incomplete .part is kept across attempts and service restarts and
+    resumed via `Range: bytes=N-`; a server that ignores Range (200 full
+    body, or a Content-Range that does not start at N) forces a clean
+    restart. A .part that already reached the pinned size is verified and
+    adopted without touching the network.
+    """
     os.makedirs(os.path.dirname(dest), exist_ok=True)
     # Fast path: an already-present file with the pinned size and hash
     # (pre-seeded, or left by an earlier run that failed at a later step)
     # is used as-is; never re-download verified bytes.
-    if os.path.exists(dest) and os.path.getsize(dest) == size:
-        h = hashlib.sha256()
-        with open(dest, "rb") as f:
-            for chunk in iter(lambda: f.read(CHUNK), b""):
-                h.update(chunk)
-        if h.hexdigest() == sha256:
-            log(f"using verified local file {os.path.basename(dest)}")
-            return
+    if os.path.exists(dest) and os.path.getsize(dest) == size \
+            and file_sha256(dest) == sha256:
+        log(f"using verified local file {os.path.basename(dest)}")
+        return
     tmp = dest + ".part"
-    h = hashlib.sha256()
-    got = 0
-    try:
-        with urllib.request.urlopen(url, timeout=60) as resp, open(tmp, "wb") as out:
+    for attempt in range(1, DOWNLOAD_ATTEMPTS + 1):
+        try:
+            _download_attempt(url, tmp, size)
+            break
+        except (OSError, urllib.error.URLError) as e:
+            if attempt == DOWNLOAD_ATTEMPTS:
+                raise BootError(
+                    f"download failed {url} after {attempt} attempts; "
+                    f"keeping {os.path.basename(tmp)} so the next service "
+                    f"restart resumes it: {e}")
+            wait = RETRY_WAIT_S * attempt
+            log(f"download attempt {attempt} failed ({e}); "
+                f"resuming in {wait}s ...")
+            time.sleep(wait)
+    # _download_attempt only returns on a complete transfer (or a complete
+    # pre-existing .part); the hash now decides adoption or a clean re-fetch.
+    digest = file_sha256(tmp)
+    if digest != sha256:
+        os.remove(tmp)
+        raise BootError(f"{url}: sha256 mismatch got {digest} expected "
+                        f"{sha256} — discarded partial file")
+    os.replace(tmp, dest)
+
+
+def _download_attempt(url: str, tmp: str, size: int) -> None:
+    """One download pass over tmp; raise OSError/URLError to request a retry."""
+    start = 0
+    if os.path.exists(tmp):
+        if os.path.getsize(tmp) > size:
+            os.remove(tmp)  # foreign/corrupt prefix; start clean
+        else:
+            start = os.path.getsize(tmp)
+    if start == size:
+        return  # complete prefix from an earlier attempt; caller verifies
+    headers = {"Range": f"bytes={start}-"} if start else {}
+    req = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        resume = False
+        if start:
+            # 206 + a Content-Range rooted at our offset confirm the server
+            # honored the resume; anything else restarts from byte zero.
+            content_range = resp.headers.get("Content-Range", "")
+            resume = getattr(resp, "status", 200) == 206 \
+                and content_range.startswith(f"bytes {start}-")
+            if resume:
+                log(f"resuming {os.path.basename(tmp)} at byte {start} "
+                    f"of {size}")
+            else:
+                start = 0
+        with open(tmp, "ab" if resume else "wb") as out:
             while True:
                 chunk = resp.read(CHUNK)
                 if not chunk:
                     break
-                got += len(chunk)
-                if got > size:
-                    raise BootError(f"{url}: exceeds expected size {size}")
-                h.update(chunk)
+                start += len(chunk)
+                if start > size:
+                    raise OSError(f"body exceeds expected size {size}")
                 out.write(chunk)
-    except (OSError, urllib.error.URLError) as e:
-        raise BootError(f"download failed {url}: {e}")
-    if got != size:
-        raise BootError(f"{url}: size mismatch got {got} expected {size}")
-    if h.hexdigest() != sha256:
-        raise BootError(f"{url}: sha256 mismatch got {h.hexdigest()} expected {sha256}")
-    os.replace(tmp, dest)
+    if start != size:
+        raise OSError(f"incomplete body: got {start} of {size}")
 
 
 def _safe_target(dest_root: str, name: str, strip: int):
