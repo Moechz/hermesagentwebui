@@ -1,15 +1,15 @@
 #!/bin/sh
-# hermeswebui service launcher (staged as /usr/local/hermeswebui/bin/hermeswebui).
+# hermesagent service launcher (staged as /usr/local/hermesagent/bin/hermesagent).
 #
 # First start: the bootstrap (running on the TOS system Python) provisions the
 # portable CPython runtime, the agent source and both venvs from the pinned,
 # SHA-256-verified manifest (D-007/D-010). Later starts take the fast path.
 set -eu
 
-APP_HOME=/usr/local/hermeswebui
-STATE=/var/lib/hermeswebui
-BOOTSTRAP="$APP_HOME/bin/hermeswebui-bootstrap"
-PROVISION="$APP_HOME/bin/hermeswebui-provision"
+APP_HOME=/usr/local/hermesagent
+STATE=/var/lib/hermesagent
+BOOTSTRAP="$APP_HOME/bin/hermesagent-bootstrap"
+PROVISION="$APP_HOME/bin/hermesagent-provision"
 BOOTLOG="$STATE/bootstrap/last.log"
 SYSTEM_PYTHON=/usr/bin/python3
 WEBUI_PYTHON="$STATE/venvs/app/bin/python3"
@@ -41,7 +41,7 @@ if ! "$SYSTEM_PYTHON" "$BOOTSTRAP" --check >/dev/null 2>&1; then
     cat "$BOOTLOG" || true
   else
     cat "$BOOTLOG" || true
-    echo "hermeswebui: first-start provisioning failed; systemd will retry (Restart=on-failure)" >&2
+    echo "hermesagent: first-start provisioning failed; systemd will retry (Restart=on-failure)" >&2
     kill "$PROV_PID" 2>/dev/null || true
     wait "$PROV_PID" 2>/dev/null || true
     exit 1

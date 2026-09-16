@@ -9,6 +9,11 @@ This repository is a **packaging/adaptation layer**: it does not fork or
 rewrite upstream source. Upstream lives as a nested, ignored clone under
 `upstream/hermes-webui/` and is pinned to a release tag.
 
+TOS app identity (renamed 2026-09-16, packaging seq -008): app id
+`hermesagent`, display name **Hermes Agent**, publisher Moechz,
+developer credit (lang `auth`) Nous Research. Earlier packaging
+iterations used the id `hermeswebui`.
+
 ## Layout
 
 ```text
@@ -16,7 +21,7 @@ AGENTS.md / HANDOFF.md     session/handoff entry points (read first)
 upstream/hermes-webui/     pinned upstream clone (tag exp-v0.52.302, untracked)
 packaging/templates/       TOS metadata, systemd unit, lifecycle scripts, controls
 packaging/payload/         component pins, locked wheels/requirements, bootstrap template
-packaging/assets/          app icon (hermeswebui.svg) + store PNGs
+packaging/assets/          app icon (hermesagent.svg) + store PNGs
 scripts/                   build / validate / manifest automation
 docs/                      TASK_STATE / REQUIREMENTS / DESIGN_DECISIONS / CHANGELOG
                            + official TOS developer docs mirror (docs/official/)

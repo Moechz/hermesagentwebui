@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""hermeswebui first-start provisioning placeholder page.
+"""hermesagent first-start provisioning placeholder page.
 
 During first-start provisioning (D-007: components are fetched at first
 service start, never in lifecycle scripts) the real WebUI is not running
@@ -12,10 +12,10 @@ It runs on the TOS system Python (/usr/bin/python3), never touches the
 network except for serving this page, and exits when the launcher kills it.
 
 Rendered progress sources (all optional; the page degrades gracefully):
-  - /var/lib/hermeswebui/bootstrap/state.json   completed stage marks
-  - /var/lib/hermeswebui/downloads/*.part       in-flight download bytes
-  - /usr/local/hermeswebui/manifests/components.json   expected sizes
-  - /var/lib/hermeswebui/bootstrap/last.log     previous attempt tail
+  - /var/lib/hermesagent/bootstrap/state.json   completed stage marks
+  - /var/lib/hermesagent/downloads/*.part       in-flight download bytes
+  - /usr/local/hermesagent/manifests/components.json   expected sizes
+  - /var/lib/hermesagent/bootstrap/last.log     previous attempt tail
 """
 
 import glob
@@ -26,8 +26,8 @@ import re
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-STATE = os.environ.get("HERMES_WEBUI_STATE_ROOT", "/var/lib/hermeswebui")
-APP_HOME = os.environ.get("HERMES_WEBUI_APP_HOME", "/usr/local/hermeswebui")
+STATE = os.environ.get("HERMES_WEBUI_STATE_ROOT", "/var/lib/hermesagent")
+APP_HOME = os.environ.get("HERMES_WEBUI_APP_HOME", "/usr/local/hermesagent")
 PORT = int(os.environ.get("HERMES_WEBUI_PORT", "8787"))
 HOST = os.environ.get("HERMES_WEBUI_HOST", "0.0.0.0")
 
@@ -170,7 +170,7 @@ PAGE = """<!DOCTYPE html>
  <div class="bar"><div class="fill %(cls)s" style="width:%(width)s"></div></div>
  <p class="detail">%(detail)s · %(done)s/%(total)s</p>
  <div class="note">
-  %(note)s<br>%(log)s <code>/var/lib/hermeswebui/bootstrap/last.log</code>
+  %(note)s<br>%(log)s <code>/var/lib/hermesagent/bootstrap/last.log</code>
  </div>
 %(log_html)s
 </div>

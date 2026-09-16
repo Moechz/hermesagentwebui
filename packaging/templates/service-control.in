@@ -1,4 +1,4 @@
-Package: hermeswebui-service
+Package: hermesagent-service
 Version: __VERSION__
 Architecture: __DEB_ARCH__
 Section: web

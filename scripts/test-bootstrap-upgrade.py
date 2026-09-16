@@ -18,7 +18,7 @@ import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE = os.path.join(HERE, "..", "packaging", "templates",
-                        "hermeswebui-bootstrap.py.in")
+                        "hermesagent-bootstrap.py.in")
 
 R1 = "r1" * 32   # runtime sha, current
 R2 = "r2" * 32   # runtime sha, changed

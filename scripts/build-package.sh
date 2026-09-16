@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build hermeswebui TOS packages.
+# Build hermesagent TOS packages.
 #   - Stages package trees under dist/ from packaging/templates + assets +
 #     payload pins (upstream app copy, vendored wheels, generated manifest,
 #     agent locked requirements, first-start bootstrap).
@@ -23,7 +23,7 @@ ASSETS="$ROOT/packaging/assets"
 PAYLOAD="$ROOT/packaging/payload"
 UPSTREAM="$ROOT/upstream/hermes-webui"
 DIST="$ROOT/dist"
-APP_ID=hermeswebui
+APP_ID=hermesagent
 VERSION="${1:-}"
 if [ -z "$VERSION" ]; then
   # Default: upstream webui version + packaging sequence, e.g. 0.52.302-001
@@ -82,7 +82,7 @@ PY
 stage_app() {
   # <dst> : copy the upstream runtime surface (server + api + static).
   local dst="$1"
-  local app="$dst/usr/local/hermeswebui/app"
+  local app="$dst/usr/local/hermesagent/app"
   # Guard: the clone must sit exactly at the pinned tag (D-012).
   local pinned_tag webui_ver
   pinned_tag=$(python3 -c "import json;print(json.load(open('$PAYLOAD/component-pins.json'))['webui']['tag'])")
@@ -114,7 +114,7 @@ stage_wheels() {
   # <dst> <platform> : download + verify the vendored webui wheels (cached
   # under dist/wheel-cache/<plat>; retried up to 3 times per wheel).
   local dst="$1" plat="$2"
-  local wheels="$dst/usr/local/hermeswebui/wheels"
+  local wheels="$dst/usr/local/hermesagent/wheels"
   local cache="$ROOT/.cache/wheels/$plat"
   mkdir -p "$wheels" "$cache"
   python3 - "$PAYLOAD/wheels.lock" "$plat" "$wheels" "$cache" <<'PY'
@@ -161,7 +161,7 @@ PY
 stage_manifest() {
   # <dst> <platform>
   local dst="$1" plat="$2"
-  local man="$dst/usr/local/hermeswebui/manifests"
+  local man="$dst/usr/local/hermesagent/manifests"
   mkdir -p "$man"
   local extra=()
   if [ "${ALLOW_PENDING:-0}" = "1" ]; then extra+=("--allow-pending"); fi
@@ -174,11 +174,11 @@ stage_manifest() {
 stage_agent_payload() {
   # <dst>
   local dst="$1"
-  mkdir -p "$dst/usr/local/hermeswebui/agent"
+  mkdir -p "$dst/usr/local/hermesagent/agent"
   cp "$PAYLOAD/agent-core-requirements.txt" \
-     "$dst/usr/local/hermeswebui/agent/agent-core-requirements.txt"
+     "$dst/usr/local/hermesagent/agent/agent-core-requirements.txt"
   cp "$PAYLOAD/lazy-extras.lock" \
-     "$dst/usr/local/hermeswebui/agent/lazy-extras.lock"
+     "$dst/usr/local/hermesagent/agent/lazy-extras.lock"
 }
 
 stage_common_metadata() {
@@ -189,11 +189,11 @@ stage_common_metadata() {
   # Backup (/usr/local/rsyncbackup/config.ini). Root placement made the
   # App Center manual installer fail with "parse failed" (user-verified).
   local dst="$1"
-  mkdir -p "$dst/usr/local/hermeswebui/images/icons"
-  cp "$TEMPLATES/config.ini" "$dst/usr/local/hermeswebui/config.ini"
-  cp "$TEMPLATES/hermeswebui.lang" "$dst/usr/local/hermeswebui/hermeswebui.lang"
-  cp "$ASSETS/hermeswebui.svg" \
-     "$dst/usr/local/hermeswebui/images/icons/hermeswebui.svg"
+  mkdir -p "$dst/usr/local/hermesagent/images/icons"
+  cp "$TEMPLATES/config.ini" "$dst/usr/local/hermesagent/config.ini"
+  cp "$TEMPLATES/hermesagent.lang" "$dst/usr/local/hermesagent/hermesagent.lang"
+  cp "$ASSETS/hermesagent.svg" \
+     "$dst/usr/local/hermesagent/images/icons/hermesagent.svg"
 }
 
 stage_service_tree() {
@@ -202,28 +202,28 @@ stage_service_tree() {
   local ctl="${4:-$TEMPLATES/service-control.in}"
   mkdir -p \
     "$dst/DEBIAN" \
-    "$dst/usr/local/hermeswebui/bin" \
-    "$dst/usr/local/hermeswebui/init.d"
+    "$dst/usr/local/hermesagent/bin" \
+    "$dst/usr/local/hermesagent/init.d"
   cp "$ctl" "$dst/DEBIAN/control"
   cp "$TEMPLATES/postinst"  "$dst/DEBIAN/postinst"
   cp "$TEMPLATES/prerm"     "$dst/DEBIAN/prerm"
   cp "$TEMPLATES/postrm"    "$dst/DEBIAN/postrm"
-  cp "$TEMPLATES/hermeswebui.in" "$dst/usr/local/hermeswebui/bin/hermeswebui"
-  cp "$TEMPLATES/hermeswebui-bootstrap.py.in" \
-     "$dst/usr/local/hermeswebui/bin/hermeswebui-bootstrap"
-  cp "$TEMPLATES/hermeswebui-provision.py" \
-     "$dst/usr/local/hermeswebui/bin/hermeswebui-provision"
-  cp "$TEMPLATES/hermeswebui.service" \
-     "$dst/usr/local/hermeswebui/init.d/hermeswebui.service"
+  cp "$TEMPLATES/hermesagent.in" "$dst/usr/local/hermesagent/bin/hermesagent"
+  cp "$TEMPLATES/hermesagent-bootstrap.py.in" \
+     "$dst/usr/local/hermesagent/bin/hermesagent-bootstrap"
+  cp "$TEMPLATES/hermesagent-provision.py" \
+     "$dst/usr/local/hermesagent/bin/hermesagent-provision"
+  cp "$TEMPLATES/hermesagent.service" \
+     "$dst/usr/local/hermesagent/init.d/hermesagent.service"
   stage_app "$dst"
   stage_wheels "$dst" "$plat"
   stage_manifest "$dst" "$plat"
   stage_agent_payload "$dst"
   subst "$dst/DEBIAN/control" - "$darch"
   chmod 0755 "$dst/DEBIAN/postinst" "$dst/DEBIAN/prerm" "$dst/DEBIAN/postrm" \
-             "$dst/usr/local/hermeswebui/bin/hermeswebui" \
-             "$dst/usr/local/hermeswebui/bin/hermeswebui-bootstrap" \
-             "$dst/usr/local/hermeswebui/bin/hermeswebui-provision"
+             "$dst/usr/local/hermesagent/bin/hermesagent" \
+             "$dst/usr/local/hermesagent/bin/hermesagent-bootstrap" \
+             "$dst/usr/local/hermesagent/bin/hermesagent-provision"
 }
 
 build_deb() {
@@ -250,8 +250,8 @@ for plat in $PLATFORMS; do
   darch="$(debarch_for "$plat")"
 
   # Dual-package mode: source (service) deb + data deb -> tar.gz archive.
-  SVC="$DIST/stage/${plat}/hermeswebui-service"
-  DATA="$DIST/stage/${plat}/hermeswebui-data"
+  SVC="$DIST/stage/${plat}/hermesagent-service"
+  DATA="$DIST/stage/${plat}/hermesagent-data"
   stage_service_tree "$SVC" "$plat" "$darch"
   mkdir -p "$DATA/DEBIAN"
   stage_common_metadata "$DATA"
@@ -259,15 +259,15 @@ for plat in $PLATFORMS; do
   cp "$TEMPLATES/data-postinst" "$DATA/DEBIAN/postinst"
   chmod 0755 "$DATA/DEBIAN/postinst"
   subst "$DATA/DEBIAN/control" - -        # data deb: Architecture all
-  subst "$DATA/usr/local/hermeswebui/config.ini" "$plat" - deb-TarGz
+  subst "$DATA/usr/local/hermesagent/config.ini" "$plat" - deb-TarGz
   # NOTE: the data deb config.ini must match the submitted platform even
   # though the deb itself is Architecture: all (official naming/checks).
   to_lf $(find "$SVC" "$DATA" -type f \
            \( -name '*.sh' -o -name '*.py' -o -name '*.ini' \
               -o -name '*.lang' -o -name '*.service' -o -name '*.conf' \
               -o -name 'postinst' -o -name 'prerm' -o -name 'postrm' \
-              -o -name 'hermeswebui' -o -name 'hermeswebui-bootstrap' \
-              -o -name 'hermeswebui-provision' \))
+              -o -name 'hermesagent' -o -name 'hermesagent-bootstrap' \
+              -o -name 'hermesagent-provision' \))
   # Hard guard: no macOS junk may ever enter a built package.
   junk_guard() {
     local found
@@ -276,8 +276,8 @@ for plat in $PLATFORMS; do
     [ -z "$found" ] || { echo "FAIL: AppleDouble/junk file in stage tree: $found" >&2; exit 1; }
   }
   junk_guard
-  build_deb "$SVC" "$DIST/hermeswebui-service_${VERSION}_${darch}.deb"
-  build_deb "$DATA" "$DIST/hermeswebui-data_${VERSION}_all_${plat}.deb"
+  build_deb "$SVC" "$DIST/hermesagent-service_${VERSION}_${darch}.deb"
+  build_deb "$DATA" "$DIST/hermesagent-data_${VERSION}_all_${plat}.deb"
 
   # Store/App-Center dual-package archive (validated Rsync Backup recipe):
   # <appid>_<platform>.tar.gz containing <appid>.deb (data, renamed plain)
@@ -287,38 +287,38 @@ for plat in $PLATFORMS; do
   # see the manual deb below (device-validated by the Rsync Backup
   # project's single-package manual installs).
   # (Linux only — needs the built debs; macOS stages trees only.)
-  if [ -f "$DIST/hermeswebui-data_${VERSION}_all_${plat}.deb" ] \
-     && [ -f "$DIST/hermeswebui-service_${VERSION}_${darch}.deb" ]; then
+  if [ -f "$DIST/hermesagent-data_${VERSION}_all_${plat}.deb" ] \
+     && [ -f "$DIST/hermesagent-service_${VERSION}_${darch}.deb" ]; then
   BUNDLE="$DIST/bundle-$plat"
   rm -rf "$BUNDLE"
   mkdir -p "$BUNDLE"
-  cp "$DIST/hermeswebui-data_${VERSION}_all_${plat}.deb" "$BUNDLE/hermeswebui.deb"
-  cp "$DIST/hermeswebui-service_${VERSION}_${darch}.deb" "$BUNDLE/"
-  TARGZ="$DIST/hermeswebui_${plat}.tar.gz"
+  cp "$DIST/hermesagent-data_${VERSION}_all_${plat}.deb" "$BUNDLE/hermesagent.deb"
+  cp "$DIST/hermesagent-service_${VERSION}_${darch}.deb" "$BUNDLE/"
+  TARGZ="$DIST/hermesagent_${plat}.tar.gz"
   rm -f "$TARGZ" "$TARGZ.sha256"
   LC_ALL=C tar -czf "$TARGZ" -C "$BUNDLE" \
-    hermeswebui.deb "hermeswebui-service_${VERSION}_${darch}.deb"
-  (cd "$DIST" && shasum -a 256 "hermeswebui_${plat}.tar.gz" \
-    > "hermeswebui_${plat}.tar.gz.sha256" 2>/dev/null || \
-    sha256sum "hermeswebui_${plat}.tar.gz" > "hermeswebui_${plat}.tar.gz.sha256")
+    hermesagent.deb "hermesagent-service_${VERSION}_${darch}.deb"
+  (cd "$DIST" && shasum -a 256 "hermesagent_${plat}.tar.gz" \
+    > "hermesagent_${plat}.tar.gz.sha256" 2>/dev/null || \
+    sha256sum "hermesagent_${plat}.tar.gz" > "hermesagent_${plat}.tar.gz.sha256")
   fi
 
   # Single-package manual-install deb (same content, one package).
-  MAN="$DIST/stage/${plat}/hermeswebui-manual"
-  # Single-package manual deb: identical payload, Package: hermeswebui
+  MAN="$DIST/stage/${plat}/hermesagent-manual"
+  # Single-package manual deb: identical payload, Package: hermesagent
   # (reference convention: service deb keeps the -service suffix).
   stage_service_tree "$MAN" "$plat" "$darch" "$TEMPLATES/manual-control.in"
   stage_common_metadata "$MAN"
-  subst "$MAN/usr/local/hermeswebui/config.ini" "$plat" - deb
+  subst "$MAN/usr/local/hermesagent/config.ini" "$plat" - deb
   to_lf $(find "$MAN" -type f \
            \( -name '*.sh' -o -name '*.py' -o -name '*.ini' \
               -o -name '*.lang' -o -name '*.service' -o -name '*.conf' \
               -o -name 'postinst' -o -name 'prerm' -o -name 'postrm' \
-              -o -name 'hermeswebui' -o -name 'hermeswebui-bootstrap' \
-              -o -name 'hermeswebui-provision' \))
+              -o -name 'hermesagent' -o -name 'hermesagent-bootstrap' \
+              -o -name 'hermesagent-provision' \))
   # Hard guard again: the manual tree was staged after the check above.
   junk_guard
-  build_deb "$MAN" "$DIST/hermeswebui_${VERSION}_${plat}.deb"
+  build_deb "$MAN" "$DIST/hermesagent_${VERSION}_${plat}.deb"
   # Manual-install deb naming follows the official pattern
   # <app_id>_<platform>.deb (package-specification: platform token is the
   # TOS platform name, never the deb arch). The local artifact keeps the
@@ -334,8 +334,8 @@ for plat in $PLATFORMS; do
   if [ "$(uname)" = "Linux" ]; then
     tar -czf "$DIST/${APP_ID}_${plat}.tar.gz" \
         -C "$DIST" \
-        "hermeswebui-service_${VERSION}_${darch}.deb" \
-        "hermeswebui-data_${VERSION}_all_${plat}.deb"
+        "hermesagent-service_${VERSION}_${darch}.deb" \
+        "hermesagent-data_${VERSION}_all_${plat}.deb"
   fi
 done
 

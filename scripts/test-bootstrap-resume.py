@@ -2,7 +2,7 @@
 """Test the bootstrap download() Range-resume logic against a local server.
 
 Runs the template's download() (imported verbatim from
-packaging/templates/hermeswebui-bootstrap.py.in) against a stdlib HTTP
+packaging/templates/hermesagent-bootstrap.py.in) against a stdlib HTTP
 server that can honor Range, ignore Range, or truncate every response
 (flaky network). Verifies: fresh download, resume from a partial .part,
 Range-ignored fallback to a clean restart, oversize/corrupt .part
@@ -23,7 +23,7 @@ import threading
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE = os.path.join(HERE, "..", "packaging", "templates",
-                        "hermeswebui-bootstrap.py.in")
+                        "hermesagent-bootstrap.py.in")
 
 CAP = 1024 * 1024
 DATA = os.urandom(CAP * 2 + CAP // 2)  # 2.5 MiB

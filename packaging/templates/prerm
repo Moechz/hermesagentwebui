@@ -1,12 +1,12 @@
 #!/bin/bash
-# hermeswebui service package lifecycle: pre-remove. No network operations
+# hermesagent service package lifecycle: pre-remove. No network operations
 # (official review red line, docs/official/review-standards §Security).
 set -e
 
-if systemctl is-active --quiet hermeswebui.service; then
-  systemctl stop hermeswebui.service
+if systemctl is-active --quiet hermesagent.service; then
+  systemctl stop hermesagent.service
 fi
-systemctl disable hermeswebui.service 2>/dev/null || true
+systemctl disable hermesagent.service 2>/dev/null || true
 systemctl daemon-reload
 
 exit 0

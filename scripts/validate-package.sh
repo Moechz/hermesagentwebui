@@ -1,5 +1,5 @@
 #!/bin/bash
-# Validate hermeswebui packaging templates against the official rules
+# Validate hermesagent packaging templates against the official rules
 # mirrored in docs/official/ (review-standards automated checks, cicd-guide
 # validation script, package-specification 4.x). Runs on macOS and Linux.
 set -euo pipefail
@@ -55,8 +55,8 @@ if 'type' in cfg:
 if cfg.get('width') or cfg.get('height'):
     err('external open must not declare an embedded window size')
 
-# --- hermeswebui.lang ---------------------------------------------------
-lang_path = os.path.join(T, 'hermeswebui.lang')
+# --- hermesagent.lang ---------------------------------------------------
+lang_path = os.path.join(T, 'hermesagent.lang')
 lraw = open(lang_path, 'rb').read()
 if lraw.startswith(b'\xef\xbb\xbf'):
     err('lang file has BOM')
@@ -114,8 +114,8 @@ if auths != {cfg['publisher']}:
                  f'authors, publisher is the packager)')
 
 # --- icon ----------------------------------------------------------------
-icon = os.path.join(A, 'hermeswebui.svg')
-if cfg['icon'] != '/images/icons/hermeswebui.svg':
+icon = os.path.join(A, 'hermesagent.svg')
+if cfg['icon'] != '/images/icons/hermesagent.svg':
     err('config.ini icon path mismatch')
 svg = open(icon, encoding='utf-8').read()
 if '<svg' not in svg or 'viewBox' not in svg:
@@ -129,8 +129,8 @@ for script in ['postinst', 'prerm', 'postrm', 'data-postinst']:
         err(f'{script}: CRLF endings')
     if net_re.search(s):
         err(f'{script}: network operation detected (official red line F-15-1)')
-unit = open(os.path.join(T, 'hermeswebui.service'), encoding='utf-8').read()
-for must in ['User=hermeswebui', 'Group=hermeswebui',
+unit = open(os.path.join(T, 'hermesagent.service'), encoding='utf-8').read()
+for must in ['User=hermesagent', 'Group=hermesagent',
              'StartLimitIntervalSec=',
              'ProtectSystem=strict']:
     if must not in unit:
@@ -177,7 +177,7 @@ if re.search(r'^hermes-agent==', reqs, re.M):
     err('agent-core-requirements.txt must not pin the agent itself')
 
 # --- bootstrap + launcher wiring ----------------------------------------
-boot = os.path.join(T, 'hermeswebui-bootstrap.py.in')
+boot = os.path.join(T, 'hermesagent-bootstrap.py.in')
 import py_compile, tempfile
 try:
     py_compile.compile(boot, cfile=os.path.join(tempfile.gettempdir(), 'hwui-boot.pyc'),
@@ -186,8 +186,8 @@ except py_compile.PyCompileError as e:
     err(f'bootstrap does not compile: {e}')
 if '\r\n' in open(boot, 'rb').read().decode('utf-8', 'replace'):
     err('bootstrap has CRLF endings')
-launcher = open(os.path.join(T, 'hermeswebui.in'), encoding='utf-8').read()
-for must in ['hermeswebui-bootstrap --check', 'venvs/app/bin/python3',
+launcher = open(os.path.join(T, 'hermesagent.in'), encoding='utf-8').read()
+for must in ['hermesagent-bootstrap --check', 'venvs/app/bin/python3',
              'HERMES_WEBUI_AGENT_DIR']:
     if must.split(' --')[0] not in launcher:
         err(f'launcher missing: {must}')

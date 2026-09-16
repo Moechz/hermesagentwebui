@@ -1,14 +1,14 @@
 #!/bin/bash
-# hermeswebui data package (deb-TarGz dual mode) lifecycle: install.
+# hermesagent data package (deb-TarGz dual mode) lifecycle: install.
 # The data package carries App Center metadata only (config.ini, app.lang,
 # icon). It must not contain binaries (official one-vote-veto item,
 # docs/official/deb-development-specification §Dual-Package Mode).
 set -e
 
-APP_HOME=/usr/local/hermeswebui
+APP_HOME=/usr/local/hermesagent
 
 chmod 0644 "$APP_HOME/config.ini"
-chmod 0644 "$APP_HOME/hermeswebui.lang"
-chmod 0644 "$APP_HOME/images/icons/hermeswebui.svg"
+chmod 0644 "$APP_HOME/hermesagent.lang"
+chmod 0644 "$APP_HOME/images/icons/hermesagent.svg"
 
 exit 0

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""hermeswebui first-start bootstrap (D-007/D-010).
+"""hermesagent first-start bootstrap (D-007/D-010).
 
 Runs on the TOS system Python (3.10, stdlib only) before the WebUI starts:
 
@@ -46,8 +46,8 @@ import time
 import urllib.error
 import urllib.request
 
-APP_HOME = os.environ.get("HWUI_APP_HOME", "/usr/local/hermeswebui")
-STATE = os.environ.get("HWUI_STATE", "/var/lib/hermeswebui")
+APP_HOME = os.environ.get("HWUI_APP_HOME", "/usr/local/hermesagent")
+STATE = os.environ.get("HWUI_STATE", "/var/lib/hermesagent")
 ALLOWED_HOST = "github.com"
 CHUNK = 1024 * 1024
 # In-process attempts per download; after the last one the bootstrap fails
@@ -63,7 +63,7 @@ class BootError(Exception):
 
 
 def log(msg: str) -> None:
-    print(f"hermeswebui-bootstrap: {msg}", file=sys.stderr, flush=True)
+    print(f"hermesagent-bootstrap: {msg}", file=sys.stderr, flush=True)
 
 
 def load_manifest() -> dict:

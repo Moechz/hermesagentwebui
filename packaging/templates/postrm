@@ -1,22 +1,22 @@
 #!/bin/bash
-# hermeswebui service package lifecycle: post-remove. No network operations
+# hermesagent service package lifecycle: post-remove. No network operations
 # (official review red line, docs/official/review-standards §Security).
 #
-# Data policy: on "remove" all user data under /var/lib/hermeswebui/hermes
+# Data policy: on "remove" all user data under /var/lib/hermesagent/hermes
 # (chat sessions, agent memory, credentials) is KEPT so reinstallation or
 # upgrade never loses it. Only "purge" deletes application state.
 set -e
 
 case "${1:-}" in
   remove|purge)
-    rm -f /etc/systemd/system/hermeswebui.service
+    rm -f /etc/systemd/system/hermesagent.service
     ;;
 esac
 systemctl daemon-reload
 
 if [ "${1:-}" = "purge" ]; then
-  rm -rf /var/lib/hermeswebui
-  rm -rf /var/log/hermeswebui
+  rm -rf /var/lib/hermesagent
+  rm -rf /var/log/hermesagent
 fi
 
 exit 0

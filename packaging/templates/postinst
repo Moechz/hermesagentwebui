@@ -1,14 +1,14 @@
 #!/bin/bash
-# hermeswebui service package lifecycle: install.
+# hermesagent service package lifecycle: install.
 # Official red line (docs/official/review-standards §Security): lifecycle
 # scripts must NOT perform network operations (no apt/pip install, no
 # curl|bash). Component fetching happens at first service start (D-007).
 set -e
 
-APP_ID=hermeswebui
-APP_HOME=/usr/local/hermeswebui
-UNIT_SRC="$APP_HOME/init.d/hermeswebui.service"
-UNIT_DST=/etc/systemd/system/hermeswebui.service
+APP_ID=hermesagent
+APP_HOME=/usr/local/hermesagent
+UNIT_SRC="$APP_HOME/init.d/hermesagent.service"
+UNIT_DST=/etc/systemd/system/hermesagent.service
 
 # Dedicated non-root system user (official one-vote-veto: never run as root).
 if ! getent group "$APP_ID" >/dev/null 2>&1; then
@@ -17,20 +17,20 @@ fi
 if ! id "$APP_ID" >/dev/null 2>&1; then
   useradd --system \
     --gid "$APP_ID" \
-    --home-dir /var/lib/hermeswebui \
+    --home-dir /var/lib/hermesagent \
     --no-create-home \
     --shell /usr/sbin/nologin \
     "$APP_ID"
 fi
 
-# State and log locations. HERMES_HOME (/var/lib/hermeswebui/hermes) holds
+# State and log locations. HERMES_HOME (/var/lib/hermesagent/hermes) holds
 # sessions, agent memory and credentials; it survives upgrades and removal.
-mkdir -p /var/lib/hermeswebui/hermes /var/log/hermeswebui
-chown "$APP_ID:$APP_ID" /var/lib/hermeswebui /var/lib/hermeswebui/hermes /var/log/hermeswebui
-chmod 0711 /var/lib/hermeswebui /var/lib/hermeswebui/hermes
-chmod 0750 /var/log/hermeswebui
+mkdir -p /var/lib/hermesagent/hermes /var/log/hermesagent
+chown "$APP_ID:$APP_ID" /var/lib/hermesagent /var/lib/hermesagent/hermes /var/log/hermesagent
+chmod 0711 /var/lib/hermesagent /var/lib/hermesagent/hermes
+chmod 0750 /var/log/hermesagent
 
-chmod 0755 "$APP_HOME/bin/hermeswebui"
+chmod 0755 "$APP_HOME/bin/hermesagent"
 
 # TOS App Center expects persistent regular unit files under
 # /etc/systemd/system (symlinks into /usr/local can be removed by the
@@ -44,7 +44,7 @@ systemctl daemon-reload
 
 # Official lifecycle expectation (docs/official/package-specification):
 # postinst sets permissions, enables and starts the service.
-systemctl enable hermeswebui.service
-systemctl start hermeswebui.service
+systemctl enable hermesagent.service
+systemctl start hermesagent.service
 
 exit 0
