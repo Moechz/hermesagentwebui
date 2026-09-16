@@ -9,9 +9,10 @@ This repository is a **packaging/adaptation layer**: it does not fork or
 rewrite upstream source. Upstream lives as a nested, ignored clone under
 `upstream/hermes-webui/` and is pinned to a release tag.
 
-TOS app identity (renamed 2026-09-16, packaging seq -008): app id
+TOS app identity (renamed 2026-09-16, seq -008): app id
 `hermesagent`, display name **Hermes Agent**, publisher Moechz,
-developer credit (lang `auth`) Nous Research. Earlier packaging
+developer credit (lang `auth`) "Nous Research & nesquena" (the two
+upstream authors; co-credit since seq -009). Earlier packaging
 iterations used the id `hermeswebui`.
 
 ## Layout

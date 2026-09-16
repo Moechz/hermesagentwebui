@@ -94,7 +94,7 @@ for chunk in lang.split('[')[1:]:
 lang_auths = set(re.findall(r'^auth = "(.*)"$', lang, re.M))
 for a in lang_auths:
     if a != 'Nous Research':
-        err(f'lang auth unexpected: {a!r} (expected Nous Research)')
+        err(f'lang auth unexpected: {a!r} (expected Nous Research & nesquena)')
 if len(lang_auths) != 1:
     err('lang auth not uniform across sections')
 

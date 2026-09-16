@@ -1,160 +1,160 @@
 [en-us]
 name = "Hermes Agent"
-auth = "Nous Research"
+auth = "Nous Research & nesquena"
 descript = "Hermes Agent WebUI brings the open-source Hermes Agent to your TOS: chat right from your browser with the same capabilities as the command line. Streaming replies, session and workspace browsing, profile switching, background operation, and scheduled tasks. Conversations, memory, and settings all stay on your device — nothing is uploaded to third parties. The first-run wizard guides you through setting an access password and connecting your own model service (API key required); the first launch needs internet access to download runtime components."
 release_note = "Initial beta: TOS 7 packaging of hermes-webui. The first start downloads the pinned Python runtime and Hermes Agent components, then the onboarding wizard guides you through setting an access password and model providers."
 important = "The first launch needs internet access to download runtime components. Set an access password during onboarding; conversations and API keys stay on your device."
 
 [de-de]
 name = "Hermes Agent"
-auth = "Nous Research"
+auth = "Nous Research & nesquena"
 descript = "Hermes Agent WebUI bringt den Open-Source-Agenten Hermes Agent auf Ihr TOS: Chatten Sie direkt im Browser mit denselben Fähigkeiten wie in der Kommandozeile. Streaming-Antworten, Sitzungs- und Workspace-Ansicht, Profilwechsel, Betrieb im Hintergrund und geplante Aufgaben. Gespräche, Speicher und Einstellungen bleiben vollständig auf Ihrem Gerät — nichts wird an Dritte übertragen. Der Einrichtungsassistent führt Sie durch das Festlegen eines Zugriffspassworts und die Anbindung Ihres eigenen Modelldienstes (API-Key erforderlich); beim ersten Start ist eine Internetverbindung zum Herunterladen der Laufzeitkomponenten nötig."
 release_note = "Erste Beta: TOS-7-Paketierung von hermes-webui. Beim ersten Start werden die festgepinnte Python-Laufzeit und die Hermes-Agent-Komponenten heruntergeladen; danach führt der Assistent durch das Festlegen von Zugriffspasswort und Modelldiensten."
 important = "Der erste Start benötigt eine Internetverbindung, um Laufzeitkomponenten herunterzuladen. Legen Sie im Assistenten ein Zugriffspasswort fest; Gespräche und API-Keys bleiben auf Ihrem Gerät."
 
 [fr-fr]
 name = "Hermes Agent"
-auth = "Nous Research"
+auth = "Nous Research & nesquena"
 descript = "Hermes Agent WebUI amène l'agent open source Hermes Agent sur votre TOS : discutez directement depuis le navigateur avec les mêmes capacités que la ligne de commande. Réponses en streaming, consultation des sessions et des espaces de travail, changement de profil, exécution en arrière-plan et tâches planifiées. Conversations, mémoire et paramètres restent entièrement sur votre appareil — rien n'est transmis à des tiers. L'assistant de première exécution vous guide pour définir un mot de passe d'accès et connecter votre propre service de modèles (clé API requise) ; le premier lancement nécessite une connexion Internet pour télécharger les composants d'exécution."
 release_note = "Première version bêta : packaging TOS 7 de hermes-webui. Au premier démarrage, l'environnement Python épinglé et les composants de Hermes Agent sont téléchargés, puis l'assistant vous guide pour définir un mot de passe d'accès et vos services de modèles."
 important = "Le premier lancement nécessite une connexion Internet pour télécharger les composants d'exécution. Définissez un mot de passe d'accès dans l'assistant ; les conversations et les clés API restent sur votre appareil."
 
 [es-es]
 name = "Hermes Agent"
-auth = "Nous Research"
+auth = "Nous Research & nesquena"
 descript = "Hermes Agent WebUI lleva el agente de código abierto Hermes Agent a tu TOS: chatea desde el navegador con las mismas capacidades que la línea de comandos. Respuestas en streaming, exploración de sesiones y espacios de trabajo, cambio de perfiles, ejecución en segundo plano y tareas programadas. Las conversaciones, la memoria y la configuración se guardan por completo en tu dispositivo; nada se sube a terceros. El asistente de primer inicio te guía para establecer una contraseña de acceso y conectar tu propio servicio de modelos (se requiere clave de API); el primer arranque necesita conexión a Internet para descargar los componentes del entorno de ejecución."
 release_note = "Primera beta: empaquetado de hermes-webui para TOS 7. En el primer arranque se descargan el entorno de Python fijado y los componentes de Hermes Agent; después, el asistente te guía para establecer una contraseña de acceso y tus servicios de modelos."
 important = "El primer arranque necesita conexión a Internet para descargar los componentes del entorno de ejecución. Establece una contraseña de acceso en el asistente; las conversaciones y las claves de API permanecen en tu dispositivo."
 
 [it-it]
 name = "Hermes Agent"
-auth = "Nous Research"
+auth = "Nous Research & nesquena"
 descript = "Hermes Agent WebUI porta l'agente open source Hermes Agent sul tuo TOS: chatta direttamente dal browser con le stesse funzionalità della riga di comando. Risposte in streaming, consultazione di sessioni e aree di lavoro, cambio profilo, esecuzione in background e attività pianificate. Conversazioni, memoria e impostazioni restano interamente sul tuo dispositivo: nulla viene caricato presso terze parti. La procedura guidata iniziale ti accompagna nell'impostazione di una password di accesso e nel collegamento del tuo servizio di modelli (richiesta una chiave API); al primo avvio serve una connessione Internet per scaricare i componenti runtime."
 release_note = "Prima beta: pacchettizzazione di hermes-webui per TOS 7. Al primo avvio vengono scaricati il runtime Python fissato e i componenti di Hermes Agent; la procedura guidata ti accompagna poi nell'impostazione della password di accesso e dei servizi di modelli."
 important = "Il primo avvio richiede una connessione Internet per scaricare i componenti runtime. Imposta una password di accesso nella procedura guidata; conversazioni e chiavi API restano sul tuo dispositivo."
 
 [tr-tr]
 name = "Hermes Agent"
-auth = "Nous Research"
+auth = "Nous Research & nesquena"
 descript = "Hermes Agent WebUI, açık kaynaklı Hermes Agent'ı TOS'unuza getirir: tarayıcıdan, komut satırıyla aynı yeteneklerle sohbet edin. Akış (streaming) yanıtlar, oturum ve çalışma alanında gezinme, profil değiştirme, arka planda çalışma ve zamanlanmış görevler. Konuşmalar, bellek ve ayarlar tamamen cihazınızda kalır — hiçbir şey üçüncü taraflara yüklenmez. İlk çalıştırma sihirbazı, erişim parolası belirleme ve kendi model servisinizi bağlama konusunda size yol gösterir (API anahtarı gerekir); ilk çalıştırmada çalışma zamanı bileşenlerini indirmek için internet bağlantısı gerekir."
 release_note = "İlk beta: hermes-webui'nin TOS 7 paketi. İlk çalıştırmada sabitlenmiş Python çalışma zamanı ve Hermes Agent bileşenleri indirilir; sihirbaz daha sonra erişim parolası ve model servislerini ayarlama konusunda size yol gösterir."
 important = "İlk çalıştırma, çalışma zamanı bileşenlerini indirmek için internet bağlantısı gerektirir. Sihirbazda bir erişim parolası belirleyin; konuşmalar ve API anahtarları cihazınızda kalır."
 
 [pt-pt]
 name = "Hermes Agent"
-auth = "Nous Research"
+auth = "Nous Research & nesquena"
 descript = "O Hermes Agent WebUI traz o agente open source Hermes Agent para o seu TOS: converse diretamente no navegador com as mesmas capacidades da linha de comandos. Respostas em streaming, navegação em sessões e áreas de trabalho, mudança de perfis, execução em segundo plano e tarefas agendadas. Conversas, memória e definições ficam integralmente no seu dispositivo — nada é enviado para terceiros. O assistente de primeira utilização guia-o na definição de uma palavra-passe de acesso e na ligação do seu próprio serviço de modelos (chave de API necessária); o primeiro arranque requer ligação à Internet para transferir os componentes de execução."
 release_note = "Primeira beta: empacotamento do hermes-webui para TOS 7. No primeiro arranque são transferidos o runtime Python fixado e os componentes do Hermes Agent; o assistente guia-o depois na definição da palavra-passe de acesso e dos serviços de modelos."
 important = "O primeiro arranque requer ligação à Internet para transferir os componentes de execução. Defina uma palavra-passe de acesso no assistente; as conversas e as chaves de API ficam no seu dispositivo."
 
 [hu-hu]
 name = "Hermes Agent"
-auth = "Nous Research"
+auth = "Nous Research & nesquena"
 descript = "A Hermes Agent WebUI a nyílt forráskódú Hermes Agent ügynököt hozza el a TOS-rendszeredre: beszélgess közvetlenül a böngészőből, a parancssorral azonos képességekkel. Folyamatos (streamelt) válaszok, munkamenetek és munkaterületek tallózása, profilváltás, háttérben futás és ütemezett feladatok. A beszélgetések, a memória és a beállítások teljes egészében a készülékeden maradnak — semmi sem kerül harmadik félhez. Az első indítás varázslója végigvezet a hozzáférési jelszó beállításán és a saját modellszolgáltatásod csatlakoztatásán (API-kulcs szükséges); az első futtatáshoz internetkapcsolat kell a futásidejű összetevők letöltéséhez."
 release_note = "Első béta: a hermes-webui TOS 7-es csomagja. Az első indításkor letöltődik a rögzített Python-futatókörnyezet és a Hermes Agent összetevői; a varázsló ezután végigvezet a hozzáférési jelszó és a modellszolgáltatások beállításán."
 important = "Az első indításhoz internetkapcsolat kell a futásidejű összetevők letöltéséhez. Állíts be hozzáférési jelszót a varázslóban; a beszélgetések és az API-kulcsok a készülékeden maradnak."
 
 [nb-no]
 name = "Hermes Agent"
-auth = "Nous Research"
+auth = "Nous Research & nesquena"
 descript = "Hermes Agent WebUI tar med åpen kildekode-agenten Hermes Agent til TOS-en din: chatt rett fra nettleseren med samme muligheter som kommandolinjen. Strømmende svar, utforsking av økter og arbeidsområder, profilbytte, drift i bakgrunnen og planlagte oppgaver. Samtaler, minne og innstillinger blir liggende helt på enheten din — ingenting lastes opp til tredjeparter. Førstegangsveiviseren leder deg gjennom å angi et tilgangspassord og koble til din egen modelltjeneste (API-nøkkel kreves); ved første oppstart kreves internettilkobling for å laste ned kjøretidskomponentene."
 release_note = "Første beta: TOS 7-pakke av hermes-webui. Ved første oppstart lastes den låste Python-kjøretiden og Hermes Agent-komponentene ned; veiviseren leder deg deretter gjennom å angi tilgangspassord og modelltjenester."
 important = "Første oppstart krever internettilkobling for å laste ned kjøretidskomponentene. Angi et tilgangspassord i veiviseren; samtaler og API-nøkler forblir på enheten din."
 
 [sv-se]
 name = "Hermes Agent"
-auth = "Nous Research"
+auth = "Nous Research & nesquena"
 descript = "Hermes Agent WebUI för med sig open source-agenten Hermes Agent till ditt TOS: chatta direkt i webbläsaren med samma funktioner som kommandoraden. Strömmande svar, bläddring i sessioner och arbetsytor, profilbyte, drift i bakgrunden och schemalagda uppgifter. Konversationer, minne och inställningar finns kvar helt på din enhet — inget laddas upp till tredje part. Startguiden leder dig genom att ställa in ett åtkomstlösenord och ansluta din egen modelltjänst (API-nyckel krävs); vid första start krävs internetanslutning för att hämta runtime-komponenterna."
 release_note = "Första betan: TOS 7-paketering av hermes-webui. Vid första start hämtas den fastlåsta Python-runtime:n och Hermes Agent-komponenterna; guiden leder dig sedan genom inställning av åtkomstlösenord och modelltjänster."
 important = "Första starten kräver internetanslutning för att hämta runtime-komponenterna. Ställ in ett åtkomstlösenord i guiden; konversationer och API-nycklar finns kvar på din enhet."
 
 [nl-nl]
 name = "Hermes Agent"
-auth = "Nous Research"
+auth = "Nous Research & nesquena"
 descript = "Hermes Agent WebUI brengt de open-source-agent Hermes Agent naar uw TOS: chat direct vanuit de browser met dezelfde mogelijkheden als de opdrachtregel. Streamingantwoorden, verkenning van sessies en werkruimten, profielwissel, werking op de achtergrond en geplande taken. Gesprekken, geheugen en instellingen blijven volledig op uw apparaat — er wordt niets naar derden geüpload. De wizard bij de eerste start begeleidt u bij het instellen van een toegangswachtwoord en het verbinden van uw eigen modeldienst (API-key vereist); voor de eerste start is een internetverbinding nodig om runtimecomponenten te downloaden."
 release_note = "Eerste bèta: TOS 7-verpakking van hermes-webui. Bij de eerste start worden de vastgezette Python-runtime en de Hermes Agent-componenten gedownload; daarna begeleidt de wizard u bij het instellen van een toegangswachtwoord en modelservices."
 important = "Voor de eerste start is een internetverbinding nodig om runtimecomponenten te downloaden. Stel in de wizard een toegangswachtwoord in; gesprekken en API-keys blijven op uw apparaat."
 
 [cs-cz]
 name = "Hermes Agent"
-auth = "Nous Research"
+auth = "Nous Research & nesquena"
 descript = "Hermes Agent WebUI přináší open-source agenta Hermes Agent na váš TOS: povídejte si přímo v prohlížeči se stejnými schopnostmi jako v příkazové řádce. Streamované odpovědi, procházení relací a pracovních prostorů, přepínání profilů, běh na pozadí a naplánované úlohy. Konverzace, paměť i nastavení zůstávají výhradně na vašem zařízení — nic se nahrává třetím stranám. Průvodce prvním spuštěním vás provede nastavením přístupového hesla a připojením vlastní modelové služby (vyžaduje se API klíč); při prvním spuštění je potřeba připojení k internetu ke stažení běhových komponent."
 release_note = "První beta: balíček hermes-webui pro TOS 7. Při prvním spuštění se stáhne připnuté běhové prostředí Pythonu a komponenty agenta Hermes; průvodce vás poté provede nastavením přístupového hesla a modelových služeb."
 important = "Při prvním spuštění je potřeba připojení k internetu ke stažení běhových komponent. V průvodci si nastavte přístupové heslo; konverzace a API klíče zůstávají na vašem zařízení."
 
 [pl-pl]
 name = "Hermes Agent"
-auth = "Nous Research"
+auth = "Nous Research & nesquena"
 descript = "Hermes Agent WebUI sprowadza open-source'owego agenta Hermes Agent na Twój TOS: rozmawiaj bezpośrednio w przeglądarce z tymi samymi możliwościami co w wierszu poleceń. Odpowiedzi strumieniowe, przeglądanie sesji i obszarów roboczych, przełączanie profili, praca w tle i zaplanowane zadania. Rozmowy, pamięć i ustawienia pozostają w całości na Twoim urządzeniu — nic nie jest wysyłane do osób trzecich. Kreator pierwszego uruchomienia przeprowadzi Cię przez ustawienie hasła dostępu i podłączenie własnej usługi modeli (wymagany klucz API); pierwsze uruchomienie wymaga połączenia z internetem, aby pobrać komponenty środowiska uruchomieniowego."
 release_note = "Pierwsza wersja beta: pakiet hermes-webui dla TOS 7. Przy pierwszym uruchomieniu pobierane są przypięte środowisko Python i komponenty agenta Hermes; kreator przeprowadzi Cię następnie przez ustawienie hasła dostępu i usług modeli."
 important = "Pierwsze uruchomienie wymaga połączenia z internetem, aby pobrać komponenty środowiska uruchomieniowego. Ustaw hasło dostępu w kreatorze; rozmowy i klucze API pozostają na Twoim urządzeniu."
 
 [ru-ru]
 name = "Hermes Agent"
-auth = "Nous Research"
+auth = "Nous Research & nesquena"
 descript = "Hermes Agent WebUI переносит open-source-агента Hermes Agent на вашу TOS: общайтесь прямо в браузере с теми же возможностями, что и в командной строке. Потоковые ответы, просмотр сеансов и рабочих пространств, переключение профилей, работа в фоне и запланированные задачи. Диалоги, память и настройки хранятся только на вашем устройстве — ничего не передаётся третьим лицам. Мастер первого запуска поможет задать пароль доступа и подключить собственный сервис моделей (нужен API-ключ); при первом запуске требуется интернет для загрузки компонентов среды выполнения."
 release_note = "Первая бета-версия: пакет hermes-webui для TOS 7. При первом запуске загружаются зафиксированная среда выполнения Python и компоненты Hermes Agent; затем мастер поможет задать пароль доступа и сервисы моделей."
 important = "Для первого запуска требуется подключение к интернету для загрузки компонентов среды выполнения. Задайте пароль доступа в мастере; диалоги и API-ключи хранятся только на вашем устройстве."
 
 [zh-cn]
 name = "Hermes Agent"
-auth = "Nous Research"
+auth = "Nous Research & nesquena"
 descript = "Hermes Agent WebUI 将开源智能体 Hermes Agent 带到你的 TOS：用浏览器即可对话，能力与命令行一致。支持流式回复、历史会话与工作区浏览、多配置切换，常驻后台运行，可定时执行任务。对话记录、记忆与设置全部保存在本机，不上传第三方。首次启动向导会引导设置访问密码并接入你自己的模型服务（需自备 API Key）；首次运行需联网下载运行组件。"
 release_note = "首个测试版：hermes-webui 的 TOS 7 打包。首次启动会下载锁定的 Python 运行时与 Hermes Agent 组件，随后引导向导带你设置访问密码和模型服务。"
 important = "首次运行需联网下载运行组件；请在引导向导中设置访问密码。对话记录与 API 密钥仅保存在你的设备上。"
 
 [zh-hk]
 name = "Hermes Agent"
-auth = "Nous Research"
+auth = "Nous Research & nesquena"
 descript = "Hermes Agent WebUI 將開源智能體 Hermes Agent 帶到你的 TOS：用瀏覽器即可對話，能力與命令行一致。支援串流回覆、歷史工作階段與工作區瀏覽、多設定檔切換，常駐背景執行，可定時執行任務。對話記錄、記憶與設定全部保存在本機，不上傳第三方。首次啟動精靈會引導設定存取密碼並接入你自己的模型服務（需自備 API Key）；首次執行需連線下載執行元件。"
 release_note = "首個測試版：hermes-webui 的 TOS 7 打包。首次啟動會下載鎖定的 Python 執行時與 Hermes Agent 元件，隨後引導精靈帶你設定存取密碼和模型服務。"
 important = "首次執行需連線下載執行元件；請在引導精靈中設定存取密碼。對話記錄與 API 金鑰僅保存在你的裝置上。"
 
 [ja-jp]
 name = "Hermes Agent"
-auth = "Nous Research"
+auth = "Nous Research & nesquena"
 descript = "Hermes Agent WebUI は、オープンソースのエージェント Hermes Agent を TOS に届けます。ブラウザからコマンドラインと同等の機能で対話できます。ストリーミング応答、セッションとワークスペースの閲覧、プロファイル切替、バックグラウンド常駐、定期タスクの実行に対応。会話履歴・メモリ・設定はすべて本体に保存され、第三者へ送信されません。初回起動ウィザードでアクセスパスワードの設定と、ご自身のモデルサービスの接続をご案内します（API キーが必要）。初回起動時にはランタイムコンポーネントのダウンロードのためインターネット接続が必要です。"
 release_note = "初回ベータ版：hermes-webui の TOS 7 パッケージ。初回起動時に固定バージョンの Python ランタイムと Hermes Agent のコンポーネントをダウンロードし、その後のウィザードでアクセスパスワードとモデルサービスを設定します。"
 important = "初回起動時にはランタイムコンポーネントのダウンロードのためインターネット接続が必要です。ウィザードでアクセスパスワードを設定してください。会話履歴と API キーは本体にのみ保存されます。"
 
 [ko-kr]
 name = "Hermes Agent"
-auth = "Nous Research"
+auth = "Nous Research & nesquena"
 descript = "Hermes Agent WebUI는 오픈소스 에이전트 Hermes Agent를 TOS로 가져옵니다. 브라우저에서 명령줄과 동일한 기능으로 대화할 수 있습니다. 스트리밍 응답, 세션·워크스페이스 탐색, 프로필 전환, 백그라운드 상시 실행, 예약 작업을 지원합니다. 대화 기록, 메모리, 설정은 모두 기기에 저장되며 제3자에게 업로드되지 않습니다. 첫 실행 마법사가 접속 비밀번호 설정과 자체 모델 서비스 연결을 안내합니다(API 키 필요). 첫 실행 시 런타임 구성 요소 다운로드를 위해 인터넷 연결이 필요합니다."
 release_note = "첫 베타 버전: hermes-webui의 TOS 7 패키징입니다. 첫 실행 시 고정된 Python 런타임과 Hermes Agent 구성 요소를 내려받은 뒤, 마법사에서 접속 비밀번호와 모델 서비스를 설정합니다."
 important = "첫 실행 시 런타임 구성 요소를 다운로드하기 위해 인터넷 연결이 필요합니다. 마법사에서 접속 비밀번호를 설정하세요. 대화 기록과 API 키는 기기에만 저장됩니다."
 
 [vi-vn]
 name = "Hermes Agent"
-auth = "Nous Research"
+auth = "Nous Research & nesquena"
 descript = "Hermes Agent WebUI mang agent mã nguồn mở Hermes Agent đến TOS của bạn: trò chuyện ngay trên trình duyệt với khả năng ngang dòng lệnh. Phản hồi trực tuyến (streaming), duyệt phiên và không gian làm việc, chuyển đổi hồ sơ, chạy nền và tác vụ theo lịch. Các cuộc trò chuyện, bộ nhớ và cài đặt được lưu hoàn toàn trên thiết bị của bạn — không có gì được tải lên bên thứ ba. Trình hướng dẫn lần đầu chạy dẫn bạn đặt mật khẩu truy cập và kết nối dịch vụ mô hình riêng của mình (cần khóa API); lần chạy đầu cần kết nối Internet để tải các thành phần runtime."
 release_note = "Bản beta đầu tiên: gói hermes-webui cho TOS 7. Lần chạy đầu sẽ tải xuống môi trường Python đã ghim và các thành phần Hermes Agent; trình hướng dẫn sau đó dẫn bạn đặt mật khẩu truy cập và dịch vụ mô hình."
 important = "Lần chạy đầu cần kết nối Internet để tải các thành phần runtime. Đặt mật khẩu truy cập trong trình hướng dẫn; các cuộc trò chuyện và khóa API chỉ lưu trên thiết bị của bạn."
 
 [id-id]
 name = "Hermes Agent"
-auth = "Nous Research"
+auth = "Nous Research & nesquena"
 descript = "Hermes Agent WebUI menghadirkan agen open source Hermes Agent ke TOS Anda: mengobrol langsung dari peramban dengan kemampuan yang sama seperti baris perintah. Balasan streaming, penjelajahan sesi dan ruang kerja, pergantian profil, operasi latar belakang, dan tugas terjadwal. Percakapan, memori, dan pengaturan sepenuhnya tersimpan di perangkat Anda — tidak ada yang diunggah ke pihak ketiga. Wizard saat pertama dijalankan memandu Anda mengatur kata sandi akses dan menghubungkan layanan model Anda sendiri (kunci API diperlukan); saat pertama kali dijalankan dibutuhkan koneksi internet untuk mengunduh komponen runtime."
 release_note = "Rilis beta pertama: paket hermes-webui untuk TOS 7. Saat pertama dijalankan, runtime Python yang dipatok dan komponen Hermes Agent diunduh; wizard kemudian memandu Anda mengatur kata sandi akses dan layanan model."
 important = "Saat pertama dijalankan dibutuhkan koneksi internet untuk mengunduh komponen runtime. Atur kata sandi akses di wizard; percakapan dan kunci API hanya tersimpan di perangkat Anda."
 
 [th-th]
 name = "Hermes Agent"
-auth = "Nous Research"
+auth = "Nous Research & nesquena"
 descript = "Hermes Agent WebUI นำเอเจนต์โอเพนซอร์ส Hermes Agent มาสู่ TOS ของคุณ: แชทจากเบราว์เซอร์ได้โดยมีความสามารถเทียบเท่าบรรทัดคำสั่ง รองรับการตอบกลับแบบสตรีมมิง การเรียกดูเซสชันและพื้นที่ทำงาน การสลับโปรไฟล์ การทำงานเบื้องหลัง และงานตามกำหนดเวลา บทสนทนา ความจำ และการตั้งค่าถูกเก็บไว้ในเครื่องของคุณทั้งหมด โดยไม่มีการอัปโหลดไปยังบุคคลที่สาม ตัวช่วยการเริ่มใช้งานครั้งแรกจะแนะนำการตั้งรหัสผ่านการเข้าถึงและการเชื่อมต่อบริการโมเดลของคุณเอง (ต้องมี API Key) การเรียกใช้งานครั้งแรกต้องมีอินเทอร์เน็ตเพื่อดาวน์โหลดส่วนประกอบรันไทม์"
 release_note = "เวอร์ชันเบตาแรก: แพ็กเกจ hermes-webui สำหรับ TOS 7 การเริ่มใช้งานครั้งแรกจะดาวน์โหลดรันไทม์ Python ที่ล็อกเวอร์ชันไว้และส่วนประกอบของ Hermes Agent จากนั้นตัวช่วยจะแนะนำการตั้งรหัสผ่านการเข้าถึงและบริการโมเดล"
 important = "การเริ่มใช้งานครั้งแรกต้องมีอินเทอร์เน็ตเพื่อดาวน์โหลดส่วนประกอบรันไทม์ โปรดตั้งรหัสผ่านการเข้าถึงในตัวช่วย บทสนทนาและคีย์ API จะถูกเก็บไว้ในเครื่องของคุณเท่านั้น"
 
 [ar-sa]
 name = "Hermes Agent"
-auth = "Nous Research"
+auth = "Nous Research & nesquena"
 descript = "يجلب Hermes Agent WebUI وكيل Hermes Agent مفتوح المصدر إلى نظام TOS الخاص بك: تحدث مباشرة من المتصفح بقدرات مطابقة لسطر الأوامر. ردود بث مباشر، وتصفح الجلسات ومساحات العمل، وتبديل الملفات الشخصية، والتشغيل في الخلفية، والمهام المجدولة. تبقى المحادثات والذاكرة والإعدادات بالكامل على جهازك — لا يُرفع أي شيء إلى جهات خارجية. يرشدك معالج التشغيل الأول إلى تعيين كلمة مرور الوصول وربط خدمة النماذج الخاصة بك (يلزم مفتاح API)؛ ويتطلب التشغيل الأول اتصالاً بالإنترنت لتنزيل مكونات بيئة التشغيل."
 release_note = "أول إصدار تجريبي: حزمة hermes-webui لنظام TOS 7. عند التشغيل الأول يتم تنزيل بيئة تشغيل Python المثبّتة ومكونات Hermes Agent؛ ثم يرشدك المعالج إلى تعيين كلمة مرور الوصول وخدمات النماذج."
 important = "يتطلب التشغيل الأول اتصالاً بالإنترنت لتنزيل مكونات بيئة التشغيل. عيّن كلمة مرور الوصول في المعالج؛ تبقى المحادثات ومفاتيح API على جهازك فقط."
 
 [he-il]
 name = "Hermes Agent"
-auth = "Nous Research"
+auth = "Nous Research & nesquena"
 descript = "Hermes Agent WebUI מביא את הסוכן בקוד פתוח Hermes Agent למערכת ה-TOS שלכם: שוחחו ישירות מהדפדפן עם אותן יכולות כמו בשורת הפקודה. תשובות בסטרימינג, עיון בהפעלות ובסביבות עבודה, החלפת פרופילים, פעולה ברקע ומשימות מתוזמנות. השיחות, הזיכרון וההגדרות נשמרים כולם במכשיר שלכם — שום דבר אינו מועלה לצד שלישי. אשף ההפעלה הראשונה מדריך אתכם בהגדרת סיסמת גישה ובחיבור שירות המודלים שלכם (נדרש מפתח API); ההפעלה הראשונה דורשת חיבור לאינטרנט להורדת רכיבי זמן הריצה."
 release_note = "מהדורת בטא ראשונה: חבילת hermes-webui עבור TOS 7. בהפעלה הראשונה מורידים את סביבת Python הנעולה ואת רכיבי Hermes Agent; לאחר מכן האשף מדריך אתכם בהגדרת סיסמת הגישה ושירותי המודלים."
 important = "ההפעלה הראשונה דורשת חיבור לאינטרנט להורדת רכיבי זמן הריצה. הגדירו סיסמת גישה באשף; השיחות ומפתחות ה-API נשמרים במכשיר שלכם בלבד."
