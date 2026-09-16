@@ -1,29 +1,26 @@
 #!/usr/bin/env python3
 """hermesagent first-start provisioning placeholder page.
 
-During first-start provisioning (D-007: components are fetched at first
-service start, never in lifecycle scripts) the real WebUI is not running
-yet, so port 8787 answers nothing and users see "connection refused" —
-indistinguishable from a broken app (user-reported). This tiny stdlib-only
-server binds the port FIRST and serves a bilingual progress page until the
-launcher hands over to the real WebUI.
+During first-start provisioning (D-007: components are provisioned at
+first service start, never in lifecycle scripts; D-015: everything is
+bundled in the deb — no network) the real WebUI is not running yet, so
+port 8787 answers nothing and users would see "connection refused" —
+indistinguishable from a broken app (user-reported). This tiny
+stdlib-only server binds the port FIRST and serves a bilingual progress
+page until the launcher hands over to the real WebUI.
 
 It runs on the TOS system Python (/usr/bin/python3), never touches the
-network except for serving this page, and exits when the launcher kills it.
+network except for serving this page, and exits when the launcher kills
+it.
 
 Rendered progress sources (all optional; the page degrades gracefully):
   - /var/lib/hermesagent/bootstrap/state.json   completed stage marks
-  - /var/lib/hermesagent/downloads/*.part       in-flight download bytes
-  - /usr/local/hermesagent/manifests/components.json   expected sizes
   - /var/lib/hermesagent/bootstrap/last.log     previous attempt tail
 """
 
-import glob
 import html
 import json
 import os
-import re
-import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 STATE = os.environ.get("HERMES_WEBUI_STATE_ROOT", "/var/lib/hermesagent")
@@ -33,15 +30,15 @@ HOST = os.environ.get("HERMES_WEBUI_HOST", "0.0.0.0")
 
 STAGES = [
     ("runtime",
-     "下载 Python 运行时", "Downloading Python runtime"),
+     "解压 Python 运行时", "Unpacking Python runtime"),
     ("app_venv",
      "准备应用环境", "Preparing application environment"),
     ("agent_src",
-     "下载 Hermes Agent", "Downloading Hermes Agent"),
+     "解压 Hermes Agent", "Unpacking Hermes Agent"),
     ("agent_deps",
-     "安装依赖（清华镜像）", "Installing dependencies (TUNA mirror)"),
+     "安装依赖（离线）", "Installing dependencies (offline)"),
     ("lazy_extras",
-     "安装可选组件", "Installing optional components"),
+     "安装可选组件（离线）", "Installing optional components (offline)"),
     ("agent_editable",
      "收尾", "Finalizing"),
 ]
@@ -50,23 +47,22 @@ STAGES = [
 # Accept-Language picks zh or en (default en — repo source locale norm).
 STRINGS = {
     "zh": {
-        "title": "Hermes Agent WebUI — 首次装配中",
-        "sub": "首次启动需要从网络装配运行组件，本页每 3 秒自动刷新。",
-        "note": "慢网络下整个过程可能需要 10–20 分钟，请不要关闭本页；"
+        "title": "Hermes Agent — 首次装配中",
+        "sub": "首次启动正在从安装包本地装配运行组件，本页每 3 秒自动刷新。",
+        "note": "离线装配通常需要 1–3 分钟，请不要关闭本页；"
                 "完成后会自动进入应用。",
         "log": "进度日志：",
         "working": "进行中",
-        "downloading": "下载中",
     },
     "en": {
-        "title": "Hermes Agent WebUI — Provisioning",
-        "sub": "First start downloads runtime components; "
-               "this page refreshes itself every 3 seconds.",
-        "note": "On slow networks this can take 10–20 minutes. Please keep "
+        "title": "Hermes Agent — Provisioning",
+        "sub": "First start assembles the runtime components from the "
+               "installed package; this page refreshes itself every "
+               "3 seconds.",
+        "note": "Offline assembly usually takes 1–3 minutes. Please keep "
                 "this page open; the app opens automatically when ready.",
         "log": "Progress log:",
         "working": "working",
-        "downloading": "downloading",
     },
 }
 
@@ -80,48 +76,12 @@ def _marks():
         return set()
 
 
-def _expected_sizes():
-    sizes = {}
-    try:
-        with open(os.path.join(APP_HOME, "manifests", "components.json"),
-                  encoding="utf-8") as fh:
-            m = json.load(fh)
-
-        def _add(entry):
-            if isinstance(entry, dict) and entry.get("file"):
-                sizes[entry["file"]] = int(entry.get("size") or 0)
-
-        rt = m.get("runtime") or {}
-        if isinstance(rt.get("targets"), dict):
-            for t in rt["targets"].values():
-                _add(t)
-        else:
-            _add(rt)
-        _add(m.get("agent"))
-    except Exception:
-        pass
-    return sizes
-
-
 def _progress():
-    """Return (done, total, zh_label, en_label, pct, dl_text, log_tail)."""
+    """Return (done, total, zh_label, en_label, log_tail)."""
     marks = _marks()
     done = sum(1 for key, _, _ in STAGES if key in marks)
     idx = min(done, len(STAGES) - 1)
     zh_label, en_label = STAGES[idx][1], STAGES[idx][2]
-    expected = _expected_sizes()
-    dl_percent, dl_text = None, ""
-    parts = sorted(glob.glob(os.path.join(STATE, "downloads", "*.part")))
-    if parts and expected:
-        name = os.path.basename(parts[0])[:-len(".part")]
-        total = expected.get(name, 0)
-        try:
-            got = os.path.getsize(parts[0])
-        except OSError:
-            got = 0
-        if total > 0:
-            dl_percent = min(100.0, got * 100.0 / total)
-            dl_text = "%.1f / %.1f MB" % (got / 1e6, total / 1e6)
     log_tail = ""
     try:
         with open(os.path.join(STATE, "bootstrap", "last.log"),
@@ -129,7 +89,7 @@ def _progress():
             log_tail = html.escape("".join(fh.readlines()[-6:]).strip())
     except Exception:
         pass
-    return done, len(STAGES), zh_label, en_label, dl_percent, dl_text, log_tail
+    return done, len(STAGES), zh_label, en_label, log_tail
 
 
 PAGE = """<!DOCTYPE html>
@@ -203,17 +163,14 @@ class Handler(BaseHTTPRequestHandler):
         lang = self._lang()
         s = STRINGS[lang]
         try:
-            done, total, zh_label, en_label, pct, dl_text, log_tail = _progress()
+            done, total, zh_label, en_label, log_tail = _progress()
         except Exception:
-            done, total, zh_label, en_label, pct, dl_text, log_tail = (
-                0, len(STAGES), STAGES[0][1], STAGES[0][2], None, "", "")
+            done, total = 0, len(STAGES)
+            zh_label, en_label = STAGES[0][1], STAGES[0][2]
+            log_tail = ""
         label = zh_label if lang == "zh" else en_label
-        if pct is None:
-            width, cls = "45%", "ind"
-            detail = s["working"]
-        else:
-            width, cls = "%.1f%%" % pct, ""
-            detail = "%s %s (%.0f%%)" % (s["downloading"], dl_text, pct)
+        width, cls = "45%", "ind"
+        detail = s["working"]
         body = PAGE % {
             "title": s["title"],
             "sub": s["sub"],

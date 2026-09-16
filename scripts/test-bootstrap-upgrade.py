@@ -51,9 +51,13 @@ def load_bootstrap(tmp):
 
 def write_lock(boot, wheels, core, extras):
     open(os.path.join(boot.APP_HOME, "wheels/requirements.txt"), "w").write(wheels)
+    # build-tools.txt rides with the wheels fingerprint (D-015: vendored
+    # setuptools/wheel live in the venv).
+    open(os.path.join(boot.APP_HOME, "wheels/build-tools.txt"), "w").write("bt1")
     open(os.path.join(boot.APP_HOME, "agent/agent-core-requirements.txt"),
          "w").write(core)
-    open(os.path.join(boot.APP_HOME, "agent/lazy-extras.lock"), "w").write(extras)
+    open(os.path.join(boot.APP_HOME, "agent/lazy-extras.lock"),
+         "w").write(extras)
 
 
 def manifest(rt_sha=R1, ag_sha=A1):

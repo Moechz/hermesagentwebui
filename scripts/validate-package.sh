@@ -186,6 +186,21 @@ except py_compile.PyCompileError as e:
     err(f'bootstrap does not compile: {e}')
 if '\r\n' in open(boot, 'rb').read().decode('utf-8', 'replace'):
     err('bootstrap has CRLF endings')
+# Offline install (store rule S8 / D-015): no network code may ship in any
+# executable the deb contains — a reviewer grepping for online installs
+# must find nothing, in lifecycle scripts OR runtime scripts.
+net_tokens = ['urllib', 'urlopen', 'urlretrieve', '--index-url',
+              'index_url', 'pypi.org', 'pypi.tuna', 'files.pythonhosted',
+              'github.com/Moechz', 'curl ', 'wget ']
+for script in ('hermesagent-bootstrap.py.in', 'hermesagent.in',
+               'hermesagent-provision.py', 'postinst', 'prerm', 'postrm',
+               'data-postinst'):
+    s = open(os.path.join(T, script), encoding='utf-8').read()
+    code = '\n'.join(line for line in s.splitlines()
+                     if not line.lstrip().startswith('#'))
+    for tok in net_tokens:
+        if tok in code:
+            err(f'{script}: network token in shipped code: {tok!r} (S8/D-015)')
 launcher = open(os.path.join(T, 'hermesagent.in'), encoding='utf-8').read()
 for must in ['hermesagent-bootstrap --check', 'venvs/app/bin/python3',
              'HERMES_WEBUI_AGENT_DIR']:

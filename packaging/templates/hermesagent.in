@@ -2,8 +2,10 @@
 # hermesagent service launcher (staged as /usr/local/hermesagent/bin/hermesagent).
 #
 # First start: the bootstrap (running on the TOS system Python) provisions the
-# portable CPython runtime, the agent source and both venvs from the pinned,
-# SHA-256-verified manifest (D-007/D-010). Later starts take the fast path.
+# portable CPython runtime, the agent source and the app venv entirely from
+# the payload and wheels bundled inside the deb (offline, D-015/S8: no
+# online installation anywhere in the package). Later starts take the fast
+# path.
 set -eu
 
 APP_HOME=/usr/local/hermesagent
@@ -29,11 +31,12 @@ export PYTHONUNBUFFERED=1
 
 if ! "$SYSTEM_PYTHON" "$BOOTSTRAP" --check >/dev/null 2>&1; then
   # First-start provisioning. A stdlib-only placeholder page binds the
-  # port while components download (10-20 min on slow networks), so users
-  # see live progress instead of "connection refused" (user-reported
-  # confusion; D-013). Bootstrap output also lands in bootstrap/last.log
-  # for the placeholder and for post-hoc debugging (TOS user accounts
-  # often cannot read the systemd journal).
+  # port while components are assembled locally from the deb payload
+  # (1-3 minutes, offline), so users see live progress instead of
+  # "connection refused" (user-reported confusion; D-013). Bootstrap
+  # output also lands in bootstrap/last.log for the placeholder and for
+  # post-hoc debugging (TOS user accounts often cannot read the systemd
+  # journal).
   mkdir -p "$STATE/bootstrap"
   "$SYSTEM_PYTHON" "$PROVISION" &
   PROV_PID=$!

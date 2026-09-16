@@ -9,6 +9,11 @@ This repository is a **packaging/adaptation layer**: it does not fork or
 rewrite upstream source. Upstream lives as a nested, ignored clone under
 `upstream/hermes-webui/` and is pinned to a release tag.
 
+Since packaging seq -010 the deb is **fully offline** (D-015, store
+rule S8): the Python runtime, agent source and every dependency wheel
+ship inside the package (~250MB per arch) and no script in the deb
+performs any network operation.
+
 TOS app identity (renamed 2026-09-16, seq -008): app id
 `hermesagent`, display name **Hermes Agent**, publisher Moechz,
 developer credit (lang `auth`) "Nous Research & nesquena" (the two

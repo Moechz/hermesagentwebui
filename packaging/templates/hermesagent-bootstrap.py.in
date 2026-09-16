@@ -1,25 +1,25 @@
 #!/usr/bin/env python3
-"""hermesagent first-start bootstrap (D-007/D-010).
+"""hermesagent first-start bootstrap (D-007/D-015).
 
-Runs on the TOS system Python (3.10, stdlib only) before the WebUI starts:
+Runs on the TOS system Python (3.10, stdlib only) before the WebUI starts.
+The deb bundles EVERY component (offline install, store rule S8: no online
+installation anywhere in the package):
 
   1. read the pinned component manifest shipped inside the deb
-  2. fetch the portable CPython runtime and the Hermes Agent source from
-     the application's own GitHub Release (single whitelisted origin),
-     verifying size and SHA-256 for every artifact; downloads are
-     Range-resumable — a partial .part from a killed or timed-out attempt
-     (same run or a later service restart) continues from its byte offset
-     instead of restarting from zero
-  3. unpack with hardened tar handling (no absolute paths, no traversal,
+  2. verify each payload file (portable CPython runtime tarball, Hermes
+     Agent source tarball) against the manifest's size + SHA-256, then
+     unpack with hardened tar handling (no absolute paths, no traversal,
      no symlink escape, no device nodes)
-  4. create the single application venv (upstream's server imports the
-     agent in-process, so one interpreter serves both):
-       - webui wheels from the deb (offline, no network)
-       - agent locked dependencies via pip --require-hashes
-         (TUNA primary, PyPI fallback — identical hashes)
+  3. create the single application venv (upstream's server imports the
+     agent in-process, so one interpreter serves both), entirely from the
+     wheels vendored in the deb (pip --no-index --find-links):
+       - webui wheels
+       - agent locked dependencies (--require-hashes against the lock)
+       - lazy extras (edge-tts & co, hashed union lock)
        - the agent source itself as an editable install (upstream's
-         setup.py only supports editable installs)
-  5. converge provisioned state to the deb's pins: every service start
+         setup.py only supports editable; built with --no-build-isolation
+         using the vendored setuptools/wheel)
+  4. converge provisioned state to the deb's pins: every service start
      diffs state.json against the in-deb manifest + lock fingerprints
      and re-provisions exactly the sections whose pins changed (D-014
      — device upgrades need no manual wiping). HERMES_HOME user data
@@ -27,11 +27,8 @@ Runs on the TOS system Python (3.10, stdlib only) before the WebUI starts:
      exits non-zero with a readable message; the systemd unit's restart
      policy drives retries. No silent degradation, ever.
 
-Security invariants:
-  - downloads only from https://github.com (manifest release_base prefix)
-  - a manifest with a null/missing hash is refused outright
-  - tar members are individually validated before extraction
-  - subprocess calls are argv arrays only; no shell strings
+There is NO network code in this file or anywhere else shipped in the
+deb: a store reviewer grepping for online installs finds none.
 """
 import argparse
 import hashlib
@@ -42,20 +39,10 @@ import subprocess
 import sys
 import tarfile
 import tempfile
-import time
-import urllib.error
-import urllib.request
 
 APP_HOME = os.environ.get("HWUI_APP_HOME", "/usr/local/hermesagent")
 STATE = os.environ.get("HWUI_STATE", "/var/lib/hermesagent")
-ALLOWED_HOST = "github.com"
 CHUNK = 1024 * 1024
-# In-process attempts per download; after the last one the bootstrap fails
-# and systemd's Restart=on-failure (unlimited, D-013) reruns it — resuming
-# from the kept .part file. Retries inside one run avoid a full unit
-# restart per network hiccup.
-DOWNLOAD_ATTEMPTS = 3
-RETRY_WAIT_S = 5  # backoff between attempts, multiplied by attempt number
 
 
 class BootError(Exception):
@@ -79,16 +66,8 @@ def load_manifest() -> dict:
         comp = m.get(section, {})
         for field in ("file", "sha256", "size", "dest"):
             if comp.get(field) in (None, ""):
-                raise BootError(f"manifest {section}.{field} missing — refusing to fetch")
+                raise BootError(f"manifest {section}.{field} missing — refusing to provision")
     return m
-
-
-def component_url(manifest: dict, section: str) -> str:
-    base = manifest["release_base"].rstrip("/")
-    url = f"{base}/{manifest[section]['file']}"
-    if not url.startswith("https://" + ALLOWED_HOST + "/"):
-        raise BootError(f"url outside whitelist: {url}")
-    return url
 
 
 def file_sha256(path: str) -> str:
@@ -99,86 +78,24 @@ def file_sha256(path: str) -> str:
     return h.hexdigest()
 
 
-def download(url: str, dest: str, sha256: str, size: int) -> None:
-    """Fetch url -> dest with size + SHA-256 verification and resume.
+def payload_file(m: dict, section: str) -> str:
+    """Path of a bundled component; verified against the manifest pins.
 
-    Integrity is always decided by a hash over the FULL file, so a corrupt
-    or tampered prefix can only ever fail verification, never pass it. An
-    incomplete .part is kept across attempts and service restarts and
-    resumed via `Range: bytes=N-`; a server that ignores Range (200 full
-    body, or a Content-Range that does not start at N) forces a clean
-    restart. A .part that already reached the pinned size is verified and
-    adopted without touching the network.
+    The payload is part of the deb's own data, so tampering requires
+    root — but verification is free and keeps a corrupted transfer or a
+    broken overlay from producing a half-provisioned state.
     """
-    os.makedirs(os.path.dirname(dest), exist_ok=True)
-    # Fast path: an already-present file with the pinned size and hash
-    # (pre-seeded, or left by an earlier run that failed at a later step)
-    # is used as-is; never re-download verified bytes.
-    if os.path.exists(dest) and os.path.getsize(dest) == size \
-            and file_sha256(dest) == sha256:
-        log(f"using verified local file {os.path.basename(dest)}")
-        return
-    tmp = dest + ".part"
-    for attempt in range(1, DOWNLOAD_ATTEMPTS + 1):
-        try:
-            _download_attempt(url, tmp, size)
-            break
-        except (OSError, urllib.error.URLError) as e:
-            if attempt == DOWNLOAD_ATTEMPTS:
-                raise BootError(
-                    f"download failed {url} after {attempt} attempts; "
-                    f"keeping {os.path.basename(tmp)} so the next service "
-                    f"restart resumes it: {e}")
-            wait = RETRY_WAIT_S * attempt
-            log(f"download attempt {attempt} failed ({e}); "
-                f"resuming in {wait}s ...")
-            time.sleep(wait)
-    # _download_attempt only returns on a complete transfer (or a complete
-    # pre-existing .part); the hash now decides adoption or a clean re-fetch.
-    digest = file_sha256(tmp)
-    if digest != sha256:
-        os.remove(tmp)
-        raise BootError(f"{url}: sha256 mismatch got {digest} expected "
-                        f"{sha256} — discarded partial file")
-    os.replace(tmp, dest)
-
-
-def _download_attempt(url: str, tmp: str, size: int) -> None:
-    """One download pass over tmp; raise OSError/URLError to request a retry."""
-    start = 0
-    if os.path.exists(tmp):
-        if os.path.getsize(tmp) > size:
-            os.remove(tmp)  # foreign/corrupt prefix; start clean
-        else:
-            start = os.path.getsize(tmp)
-    if start == size:
-        return  # complete prefix from an earlier attempt; caller verifies
-    headers = {"Range": f"bytes={start}-"} if start else {}
-    req = urllib.request.Request(url, headers=headers)
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        resume = False
-        if start:
-            # 206 + a Content-Range rooted at our offset confirm the server
-            # honored the resume; anything else restarts from byte zero.
-            content_range = resp.headers.get("Content-Range", "")
-            resume = getattr(resp, "status", 200) == 206 \
-                and content_range.startswith(f"bytes {start}-")
-            if resume:
-                log(f"resuming {os.path.basename(tmp)} at byte {start} "
-                    f"of {size}")
-            else:
-                start = 0
-        with open(tmp, "ab" if resume else "wb") as out:
-            while True:
-                chunk = resp.read(CHUNK)
-                if not chunk:
-                    break
-                start += len(chunk)
-                if start > size:
-                    raise OSError(f"body exceeds expected size {size}")
-                out.write(chunk)
-    if start != size:
-        raise OSError(f"incomplete body: got {start} of {size}")
+    comp = m[section]
+    path = os.path.join(APP_HOME, "payload", comp["file"])
+    if not os.path.isfile(path):
+        raise BootError(f"payload missing: {path}")
+    if os.path.getsize(path) != int(comp["size"]):
+        raise BootError(f"payload size mismatch: {path}")
+    digest = file_sha256(path)
+    if digest != comp["sha256"]:
+        raise BootError(f"payload sha256 mismatch for {path}: "
+                        f"got {digest} expected {comp['sha256']}")
+    return path
 
 
 def _safe_target(dest_root: str, name: str, strip: int):
@@ -262,17 +179,34 @@ def _file_fingerprint(path: str) -> str:
         return "-"
 
 
+def _wheels_fingerprint() -> str:
+    """Fingerprint of everything the app venv is built from: the webui
+    wheels lock plus the vendored build tools (setuptools/wheel live in
+    the venv and are used for the agent's editable build)."""
+    wheels_dir = os.path.join(APP_HOME, "wheels")
+    h = hashlib.sha256()
+    for name in ("requirements.txt", "build-tools.txt"):
+        h.update(name.encode())
+        h.update(b"\0")
+        try:
+            with open(os.path.join(wheels_dir, name), "rb") as f:
+                h.update(f.read())
+        except OSError:
+            h.update(b"-")
+        h.update(b"\0")
+    return h.hexdigest()
+
+
 def deb_fingerprints() -> dict:
     """SHA-256 fingerprints of the lock files shipped inside the deb.
 
     A new deb that changes any of them (or the manifest pins) makes the
     next service start re-provision exactly the affected sections
-    (D-014). Hashing a lock file is milliseconds, so --check on every
+    (D-014). Hashing lock files is milliseconds, so --check on every
     start stays fast.
     """
     return {
-        "wheels_req": _file_fingerprint(
-            os.path.join(APP_HOME, "wheels", "requirements.txt")),
+        "wheels_req": _wheels_fingerprint(),
         "agent_core_req": _file_fingerprint(
             os.path.join(APP_HOME, "agent", "agent-core-requirements.txt")),
         "lazy_extras": _file_fingerprint(
@@ -309,7 +243,7 @@ def plan_sections(m: dict, st: State, fp: dict) -> list:
             and venv_rec.get("wheels_sha") == fp["wheels_req"]
             and os.path.exists(pip_bin)):
         if st.done("app_venv"):
-            log("app venv outdated (runtime or webui wheels changed): "
+            log("app venv outdated (runtime or vendored wheels changed): "
                 "recreating")
         todo.append("app_venv")
     ag_rec = st.data.get("agent_src", {})
@@ -348,12 +282,21 @@ def plan_sections(m: dict, st: State, fp: dict) -> list:
     return todo
 
 
-def ensure_runtime(m: dict, st: State, downloads: str) -> str:
+def pip_offline(pip: str, args: list) -> None:
+    """pip install from the vendored wheels only (--no-index, D-015)."""
+    r = run([pip, "install", "--no-index", "--find-links",
+             os.path.join(APP_HOME, "wheels"), *args],
+            capture_output=True, text=True)
+    if r.returncode != 0:
+        raise BootError(f"pip install failed: {r.stderr.strip()[-2000:]}")
+
+
+def ensure_runtime(m: dict, st: State) -> str:
     dest = os.path.join(STATE, m["runtime"]["dest"])
     rt_sha = m["runtime"]["sha256"]
-    log(f"provisioning portable CPython {m['runtime']['python']} ...")
-    tarball = os.path.join(downloads, m["runtime"]["file"])
-    download(component_url(m, "runtime"), tarball, rt_sha, int(m["runtime"]["size"]))
+    log(f"provisioning portable CPython {m['runtime']['python']} "
+        f"(bundled payload) ...")
+    tarball = payload_file(m, "runtime")
     tmp_root = tempfile.mkdtemp(prefix="hwui-rt-", dir=STATE)
     try:
         # PBS install_only tarballs unpack to a single top-level python/ dir.
@@ -367,21 +310,20 @@ def ensure_runtime(m: dict, st: State, downloads: str) -> str:
         os.replace(src, dest)
     finally:
         shutil.rmtree(tmp_root, ignore_errors=True)
-    os.remove(tarball)
     st.mark("runtime", sha256=rt_sha)
     return os.path.join(dest, "bin", "python3")
 
 
 def ensure_app_venv(m: dict, rt_python: str, st: State, fp: dict) -> str:
-    """(Re)create the single application venv and install the offline wheels.
+    """(Re)create the single application venv from vendored wheels only.
 
     Upstream's server imports run_agent.AIAgent in-process
     (api/agent_runtime.py), so the webui server and the agent share ONE
-    interpreter environment: webui wheels + agent locked deps + editable
-    agent source all live in $STATE/venvs/app.
+    interpreter environment: webui wheels + build tools + agent locked
+    deps + editable agent source all live in $STATE/venvs/app.
     """
     venv = os.path.join(STATE, "venvs", "app")
-    log("creating app venv (offline wheels) ...")
+    log("creating app venv (vendored wheels) ...")
     if os.path.exists(venv):
         # Recreate clean: stale site-packages and __editable__ finders
         # from a previous provisioning must not leak into the new one.
@@ -396,17 +338,26 @@ def ensure_app_venv(m: dict, rt_python: str, st: State, fp: dict) -> str:
             capture_output=True, text=True)
     if r.returncode != 0:
         raise BootError(f"webui wheels install failed: {r.stderr.strip()[-2000:]}")
+    # Build tools for the agent's editable install (see
+    # ensure_agent_editable): installed into the venv and used via
+    # --no-build-isolation, keeping the whole build offline.
+    r = run([pip, "install", "--no-index", "--find-links",
+             os.path.join(APP_HOME, "wheels"),
+             "-r", os.path.join(APP_HOME, "wheels", "build-tools.txt")],
+            capture_output=True, text=True)
+    if r.returncode != 0:
+        raise BootError(f"build tools install failed: {r.stderr.strip()[-2000:]}")
     st.mark("app_venv", runtime_sha=m["runtime"]["sha256"],
             wheels_sha=fp["wheels_req"])
     return os.path.join(venv, "bin", "python3")
 
 
-def ensure_agent(m: dict, st: State, downloads: str) -> str:
+def ensure_agent(m: dict, st: State) -> str:
     dest = os.path.join(STATE, m["agent"]["dest"])
     ag_sha = m["agent"]["sha256"]
-    log(f"provisioning hermes-agent {m['agent']['version']} source ...")
-    tarball = os.path.join(downloads, m["agent"]["file"])
-    download(component_url(m, "agent"), tarball, ag_sha, int(m["agent"]["size"]))
+    log(f"provisioning hermes-agent {m['agent']['version']} source "
+        f"(bundled payload) ...")
+    tarball = payload_file(m, "agent")
     tmp_root = tempfile.mkdtemp(prefix="hwui-ag-", dir=STATE)
     try:
         safe_extract(tarball, tmp_root, strip=1)
@@ -418,30 +369,15 @@ def ensure_agent(m: dict, st: State, downloads: str) -> str:
     finally:
         if tmp_root:
             shutil.rmtree(tmp_root, ignore_errors=True)
-    os.remove(tarball)
     st.mark("agent_src", sha256=ag_sha)
     return dest
 
 
-def install_with_fallback(pip: str, args: list, indexes: list) -> None:
-    """pip install with index fallback; hashes stay identical on mirrors."""
-    last = ""
-    for idx in indexes:
-        r = run([pip, "install", "--index-url", idx, *args],
-                capture_output=True, text=True)
-        if r.returncode == 0:
-            return
-        last = r.stderr.strip()[-2000:]
-        log(f"index {idx} failed, trying fallback ...")
-    raise BootError(f"pip install failed: {last}")
-
-
 def ensure_agent_deps(m: dict, st: State, fp: dict) -> None:
     pip = os.path.join(STATE, "venvs", "app", "bin", "pip")
-    log("installing agent locked dependencies (hashed) ...")
+    log("installing agent locked dependencies (vendored, hashed) ...")
     req = os.path.join(APP_HOME, "agent", "agent-core-requirements.txt")
-    install_with_fallback(pip, ["--require-hashes", "-r", req],
-                          [m["pip"]["index_url"], m["pip"]["fallback_index_url"]])
+    pip_offline(pip, ["--require-hashes", "-r", req])
     st.mark("agent_deps", req_sha=fp["agent_core_req"])
 
 
@@ -449,25 +385,24 @@ def ensure_lazy_extras(m: dict, st: State, fp: dict) -> None:
     """Pre-install the agent's runtime lazy-install extras (tts.edge etc.).
 
     The agent's tool registry lazily pip-installs optional feature deps on
-    first use; on a slow network that stalls the first chat turn by minutes
-    (user-observed: 98s for edge-tts). Pre-installing the hashed union lock
-    (agent-core + extras, versions unified) removes the stall. Non-fatal:
-    TTS is optional, the agent falls back to lazy install at runtime."""
+    first use; offline devices cannot do that at runtime, so the hashed
+    union lock (agent-core + extras, versions unified) is pre-installed
+    from the vendored wheels. Non-fatal: TTS is optional, the app works
+    without it (a failure retries next start)."""
     mark = "lazy_extras"
     pip = os.path.join(STATE, "venvs", "app", "bin", "pip")
     req = os.path.join(APP_HOME, "agent", "lazy-extras.lock")
     if not os.path.exists(req):
-        log("lazy-extras lock missing, skipping (runtime lazy install remains)")
+        log("lazy-extras lock missing, skipping")
         st.mark(mark, req_sha=fp["lazy_extras"])
         return
-    log("installing lazy extras: edge-tts (hashed) ...")
+    log("installing lazy extras: edge-tts (vendored, hashed) ...")
     try:
-        install_with_fallback(pip, ["--require-hashes", "-r", req],
-                              [m["pip"]["index_url"], m["pip"]["fallback_index_url"]])
+        pip_offline(pip, ["--require-hashes", "-r", req])
         st.mark(mark, req_sha=fp["lazy_extras"])
     except BootError as e:
         log(f"WARNING: lazy extras install failed (optional; will retry next "
-            f"start, runtime lazy install remains): {e}")
+            f"start): {e}")
 
 
 def ensure_agent_editable(m: dict, agent_dir: str, st: State) -> None:
@@ -476,10 +411,14 @@ def ensure_agent_editable(m: dict, agent_dir: str, st: State) -> None:
     # hermes-agent's setup.py refuses regular wheel/sdist builds by design
     # (upstream distributes via installer/Docker/Nix); editable install is
     # the supported path and keeps the unpacked source tree authoritative.
-    # Build isolation needs setuptools+wheel from an index, so the index
-    # (with fallback) is passed here too.
-    install_with_fallback(pip, ["--no-deps", "--editable", agent_dir],
-                          [m["pip"]["index_url"], m["pip"]["fallback_index_url"]])
+    # --no-build-isolation makes the build use the venv's vendored
+    # setuptools instead of fetching build deps from an index (offline,
+    # D-015/S8).
+    r = run([pip, "install", "--no-index", "--no-deps",
+             "--no-build-isolation", "--editable", agent_dir],
+            capture_output=True, text=True)
+    if r.returncode != 0:
+        raise BootError(f"editable install failed: {r.stderr.strip()[-2000:]}")
     st.mark("agent_editable")
 
 
@@ -504,16 +443,14 @@ def main() -> int:
         if not todo:
             log("all components provisioned and current")
             return 0
-        downloads = os.path.join(STATE, "downloads")
-        os.makedirs(downloads, exist_ok=True)
         if "runtime" in todo:
-            rt_python = ensure_runtime(m, st, downloads)
+            rt_python = ensure_runtime(m, st)
         else:
             rt_python = os.path.join(STATE, m["runtime"]["dest"], "bin", "python3")
         if "app_venv" in todo:
             rt_python = ensure_app_venv(m, rt_python, st, fp)
         if "agent_src" in todo:
-            agent_dir = ensure_agent(m, st, downloads)
+            agent_dir = ensure_agent(m, st)
         else:
             agent_dir = os.path.join(STATE, m["agent"]["dest"])
         if "agent_deps" in todo:

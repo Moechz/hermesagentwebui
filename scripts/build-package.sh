@@ -1,8 +1,14 @@
 #!/bin/bash
 # Build hermesagent TOS packages.
 #   - Stages package trees under dist/ from packaging/templates + assets +
-#     payload pins (upstream app copy, vendored wheels, generated manifest,
-#     agent locked requirements, first-start bootstrap).
+#     payload pins (upstream app copy, vendored wheels, bundled component
+#     payload, generated manifest, agent locked requirements, first-start
+#     bootstrap).
+#   - Fully offline deb (D-015, store rule S8): the portable CPython
+#     runtime and agent source tarballs are copied from dist/assets into
+#     the deb payload after hash verification, and the vendored wheels
+#     cover webui deps + agent deps + lazy extras + build tools. Nothing
+#     is fetched on the device.
 #   - Substitutes __VERSION__ / __DEB_ARCH__ / __TOS_PLATFORM__.
 #   - Enforces LF line endings (official spec 4.6).
 #   - Builds .deb via dpkg-deb on Linux only; macOS stages only (AGENTS.md 7).
@@ -112,7 +118,9 @@ stage_app() {
 
 stage_wheels() {
   # <dst> <platform> : download + verify the vendored webui wheels (cached
-  # under dist/wheel-cache/<plat>; retried up to 3 times per wheel).
+  # under dist/wheel-cache/<plat>; retried up to 3 times per wheel) and
+  # copy every cached wheel (incl. the agent wheels fetched by
+  # stage_agent_wheels) into the tree.
   local dst="$1" plat="$2"
   local wheels="$dst/usr/local/hermesagent/wheels"
   local cache="$ROOT/.cache/wheels/$plat"
@@ -155,6 +163,74 @@ for f in os.listdir(cache):
         import shutil; shutil.copy2(os.path.join(cache, f), os.path.join(out, f))
 with open(os.path.join(out, "requirements.txt"), "w") as f:
     f.write("\n".join(reqs) + "\n")
+PY
+  # Build tools for the offline editable install (D-015); consumed by the
+  # bootstrap via pip --no-build-isolation and fingerprinted with the
+  # webui wheels (both live in the venv).
+  cp "$PAYLOAD/build-tools.lock" "$wheels/build-tools.txt"
+}
+
+stage_agent_wheels() {
+  # <platform> : cross-download the agent dependency wheels for the TARGET
+  # platform into the shared wheel cache (hash-checked against the locks by
+  # pip --require-hashes; the running host python never imports them).
+  # Runs on macOS/Linux for either target arch (S8/D-015: wheels ship in
+  # the deb; the device never touches an index).
+  local plat="$1"
+  local cache="$ROOT/.cache/wheels/$plat"
+  mkdir -p "$cache"
+  local plat_flags
+  case "$plat" in
+    x86_64)
+      plat_flags="--platform manylinux2014_x86_64 --platform manylinux_2_17_x86_64 --platform manylinux_2_28_x86_64 --platform any" ;;
+    aarch64)
+      plat_flags="--platform manylinux2014_aarch64 --platform manylinux_2_17_aarch64 --platform manylinux_2_28_aarch64 --platform any" ;;
+    *) echo "stage_agent_wheels: unknown platform $plat" >&2; exit 1 ;;
+  esac
+  echo "stage_agent_wheels: downloading agent wheels for $plat ..."
+  python3 -m pip download \
+    --require-hashes --only-binary=:all: --no-deps \
+    --implementation cp --python-version 312 \
+    --abi cp312 --abi abi3 --abi none \
+    $plat_flags \
+    --dest "$cache" \
+    -r "$PAYLOAD/agent-core-requirements.txt" \
+    -r "$PAYLOAD/lazy-extras.lock" \
+    -r "$PAYLOAD/build-tools.lock"
+}
+
+stage_payload() {
+  # <dst> <platform> : copy the pinned component tarballs (portable CPython,
+  # agent source) from operator-staged dist/assets into the deb payload,
+  # verifying size + sha256 against component-pins.json (D-015: the payload
+  # IS the install source now; a bad asset must fail the build, not the
+  # device).
+  local dst="$1" plat="$2"
+  local pay="$dst/usr/local/hermesagent/payload"
+  mkdir -p "$pay"
+  python3 - "$PAYLOAD/component-pins.json" "$DIST/assets" "$pay" "$plat" <<'PY'
+import hashlib, json, os, shutil, sys
+pins, srcdir, out, plat = sys.argv[1:5]
+p = json.load(open(pins))
+comps = {"runtime": p["runtime"]["targets"][plat], "agent": p["agent"]}
+for section, c in comps.items():
+    for k in ("file", "sha256", "size"):
+        if not c.get(k):
+            raise SystemExit(f"stage_payload: pins {section}.{k} missing")
+    src = os.path.join(srcdir, c["file"])
+    if not os.path.isfile(src):
+        raise SystemExit(f"stage_payload: {src} missing — stage the pinned "
+                         "assets under dist/assets/ (see component-pins.json)")
+    if os.path.getsize(src) != int(c["size"]):
+        raise SystemExit(f"stage_payload: {src} size mismatch")
+    h = hashlib.sha256()
+    with open(src, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    if h.hexdigest() != c["sha256"]:
+        raise SystemExit(f"stage_payload: {src} sha256 mismatch")
+    shutil.copy2(src, os.path.join(out, c["file"]))
+    print(f"  payload ok: {c['file']}")
 PY
 }
 
@@ -216,7 +292,9 @@ stage_service_tree() {
   cp "$TEMPLATES/hermesagent.service" \
      "$dst/usr/local/hermesagent/init.d/hermesagent.service"
   stage_app "$dst"
+  stage_agent_wheels "$plat"
   stage_wheels "$dst" "$plat"
+  stage_payload "$dst" "$plat"
   stage_manifest "$dst" "$plat"
   stage_agent_payload "$dst"
   subst "$dst/DEBIAN/control" - "$darch"
