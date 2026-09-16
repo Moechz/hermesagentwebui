@@ -17,3 +17,9 @@ node_modules/
 
 # OS noise
 .DS_Store
+
+# Internal docs — kept local/private only, never pushed (2026-09-16)
+docs/
+AGENTS.md
+HANDOFF.md
+PROJECT_HANDOVER_DOCS.md
