@@ -2,7 +2,9 @@
 # install (setup.py build, run with pip --no-build-isolation — the S8
 # store rule forbids any online install on the device, so build deps
 # ship as vendored wheels like everything else, D-015).
-setuptools==80.9.0 \
-    --hash=sha256:062d34222ad13e0cc312a4c02d73f059e86a4acbfbdea8f8f76b28c99f306922
-wheel==0.45.1 \
-    --hash=sha256:708e7481cc80179af0e556bbf0cc00b8444c7321e2700b8d8580231d13017248
+# 2026-09-16: bumped to the OSV-clean versions (setuptools 80.9.0 /
+# wheel 0.45.1 each carried a local-vector advisory).
+setuptools==84.0.0 \
+    --hash=sha256:51a52592b3b99e102b609654876bd65f19f999935166d1352678931132b0c670
+wheel==0.48.0 \
+    --hash=sha256:3217dcc807155e45db462d7ef2431f5ddda0d7273b700d05a67b271ceb1287ab

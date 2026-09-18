@@ -9,6 +9,8 @@ APP_ID=hermesagent
 APP_HOME=/usr/local/hermesagent
 UNIT_SRC="$APP_HOME/init.d/hermesagent.service"
 UNIT_DST=/etc/systemd/system/hermesagent.service
+NGINX_SRC="$APP_HOME/nginx/hermesagent.conf"
+NGINX_DST=/etc/nginx/conf.d/hermesagent.conf
 
 # Dedicated non-root system user (official one-vote-veto: never run as root).
 if ! getent group "$APP_ID" >/dev/null 2>&1; then
@@ -31,6 +33,28 @@ chmod 0711 /var/lib/hermesagent /var/lib/hermesagent/hermes
 chmod 0750 /var/log/hermesagent
 
 chmod 0755 "$APP_HOME/bin/hermesagent"
+
+# WebUI entry page (official WebUI-app layout, F22): unpack the bundled
+# webui.bz2. External Open mode forwards to the nginx route; idempotent
+# and failure-tolerant like the validated Beszel postinst.
+if [ -f "$APP_HOME/webui.bz2" ]; then
+  ( cd "$APP_HOME" && tar -xjf webui.bz2 2>/dev/null || true )
+fi
+
+# nginx route (the platform loads nginx/<appid>.conf; mirror it into the
+# system nginx as a bootstrap, validating first -- a bare location is only
+# legal in server context; if conf.d is not server-level here, roll back
+# instead of breaking nginx reloads; validated Beszel pattern).
+if command -v nginx >/dev/null 2>&1 && [ -d /etc/nginx/conf.d ] \
+   && [ -f "$NGINX_SRC" ]; then
+  install -m 0644 "$NGINX_SRC" "$NGINX_DST"
+  if nginx -t >/dev/null 2>&1; then
+    nginx -s reload >/dev/null 2>&1 || true
+  else
+    rm -f "$NGINX_DST"
+    echo "note: local nginx conf.d is not server-context; route not registered" >&2
+  fi
+fi
 
 # TOS App Center expects persistent regular unit files under
 # /etc/systemd/system (symlinks into /usr/local can be removed by the

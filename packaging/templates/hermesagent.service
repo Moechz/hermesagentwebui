@@ -15,7 +15,7 @@ Group=hermesagent
 WorkingDirectory=/usr/local/hermesagent
 ExecStart=/usr/local/hermesagent/bin/hermesagent
 Environment=PYTHONUNBUFFERED=1
-Environment=HERMES_WEBUI_HOST=0.0.0.0
+Environment=HERMES_WEBUI_HOST=127.0.0.1
 Environment=HERMES_WEBUI_PORT=8787
 Environment=HERMES_HOME=/var/lib/hermesagent/hermes
 Environment=HERMES_WEBUI_STATE_DIR=/var/lib/hermesagent/hermes/webui

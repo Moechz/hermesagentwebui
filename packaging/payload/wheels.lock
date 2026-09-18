@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "python": "cp312",
-  "note": "one wheel per (package, arch); manylinux_2_17 floor fits TOS glibc 2.35; full transitive closure (cryptography -> cffi -> pycparser) — the missing cffi broke the first on-device offline install",
+  "note": "one wheel per (package, arch); manylinux_2_17 floor fits TOS glibc 2.35; full transitive closure (cryptography -> cffi -> pycparser) \u2014 the missing cffi broke the first on-device offline install",
   "packages": {
     "pyyaml": {
       "version": "6.0.3",
@@ -21,19 +21,19 @@
       }
     },
     "cryptography": {
-      "version": "46.0.5",
+      "version": "50.0.1",
       "wheels": {
-        "aarch64": {
-          "file": "cryptography-46.0.5-cp311-abi3-manylinux2014_aarch64.manylinux_2_17_aarch64.whl",
-          "url": "https://files.pythonhosted.org/packages/ff/9e/6b4397a3e3d15123de3b1806ef342522393d50736c13b20ec4c9ea6693a6/cryptography-46.0.5-cp311-abi3-manylinux2014_aarch64.manylinux_2_17_aarch64.whl",
-          "sha256": "c18ff11e86df2e28854939acde2d003f7984f721eba450b56a200ad90eeb0e6b",
-          "size": 4275637
-        },
         "x86_64": {
-          "file": "cryptography-46.0.5-cp311-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
-          "url": "https://files.pythonhosted.org/packages/63/e7/471ab61099a3920b0c77852ea3f0ea611c9702f651600397ac567848b897/cryptography-46.0.5-cp311-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
-          "sha256": "4d7e3d356b8cd4ea5aff04f129d5f66ebdc7b6f8eae802b93739ed520c47c79b",
-          "size": 4424742
+          "file": "cryptography-50.0.1-cp311-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+          "url": "https://files.pythonhosted.org/packages/57/26/e6d4fc8512a51a5f9ee7bfdbfb853bce1197087df40c9ad993ad370b846f/cryptography-50.0.1-cp311-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+          "sha256": "ff838d62ec1bfce4f9ba7fa16f4a7b554cd8d0c299e6be37502161a660c84eef",
+          "size": 4712478
+        },
+        "aarch64": {
+          "file": "cryptography-50.0.1-cp311-abi3-manylinux2014_aarch64.manylinux_2_17_aarch64.whl",
+          "url": "https://files.pythonhosted.org/packages/90/34/9ce9a62ed9dc82ca9fd6a34445b6904af56e5f38b3eae2ed32e49c36053d/cryptography-50.0.1-cp311-abi3-manylinux2014_aarch64.manylinux_2_17_aarch64.whl",
+          "sha256": "53e279950892dc102c6b4e52af03ae5ea92fac572a1ddab78ca73a997f62b69f",
+          "size": 4723133
         }
       }
     },

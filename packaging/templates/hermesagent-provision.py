@@ -26,7 +26,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 STATE = os.environ.get("HERMES_WEBUI_STATE_ROOT", "/var/lib/hermesagent")
 APP_HOME = os.environ.get("HERMES_WEBUI_APP_HOME", "/usr/local/hermesagent")
 PORT = int(os.environ.get("HERMES_WEBUI_PORT", "8787"))
-HOST = os.environ.get("HERMES_WEBUI_HOST", "0.0.0.0")
+HOST = os.environ.get("HERMES_WEBUI_HOST", "127.0.0.1")
 
 STAGES = [
     ("runtime",

@@ -20,6 +20,32 @@ publisher Moechz, developer credit (lang `auth`)
 "Nous Research & nesquena" (the upstream authors of the agent and the
 webui respectively).
 
+## Binary provenance & auditability
+
+The offline bundle ships prebuilt artifacts. Every one of them is
+pinned by name + size + SHA-256 in this repository and fetched from its
+official origin at build time; nothing is built from unverified
+sources, and nothing is fetched at install time:
+
+| Artifact | Source | Pin |
+|---|---|---|
+| CPython runtime (python-build-standalone) | [astral-sh/python-build-standalone](https://github.com/astral-sh/python-build-standalone) releases | `packaging/payload/component-pins.json` |
+| Hermes Agent source | [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent) release tarball (plain source) | same |
+| WebUI source | [nesquena/hermes-webui](https://github.com/nesquena/hermes-webui) release tag (plain source) | same |
+| Python wheels (webui + agent deps) | PyPI (`files.pythonhosted.org`), installed on-device with `pip --no-index --require-hashes` | `packaging/payload/wheels.lock`, `agent-core-requirements.txt`, `lazy-extras.lock` |
+| Build tools (setuptools/wheel) | PyPI | `packaging/payload/build-tools.lock` |
+
+All install-time integrity checks are enforced again on the device by
+the first-start bootstrap, which refuses any payload whose size or
+SHA-256 differs from the pinned manifest.
+
+## Privacy
+
+All conversations, agent memory, and settings stay on the device
+(`HERMES_HOME`). No telemetry, no analytics, no data upload. The app
+talks to the network only when the user configures their own model
+provider (API key entered during onboarding and stored locally).
+
 ## Layout
 
 ```text

@@ -37,19 +37,24 @@ if 'type' in cfg and 'open_path' in cfg:
     err('type and open_path cannot coexist')
 if len(cfg['category']) > 3:
     err('category exceeds maximum of 3')
-if '${ip}' not in cfg['path']:
-    err('path must use the ${ip} placeholder')
+if '${ip}' in cfg['path']:
+    err('path must be a route (/hermesagent/), not a URL with ${ip}')
 if cfg['id'] != cfg['system_id'] or cfg['id'] != cfg['package']:
     err('id/system_id/package must match')
 if cfg['version'] != '__VERSION__':
     err('config.ini version must be the __VERSION__ placeholder here')
-# WebUI External Open (D-011): open_path replaces type; URL path opens in a
-# new browser tab (official docker-development example shape); embedded
-# window size fields are zeroed.
+if cfg.get('beta') is not False:
+    err('config.ini must set beta:false (V11 one-vote veto; store wants '
+        'stable releases only)')
+# WebUI External Open (D-011, revised 2026-09-16 after store rejection
+# C21): path is a ROUTE on the TOS nginx gateway, not a direct host:port
+# URL. The desktop icon opens https://<tos>/<route>/ in a new tab;
+# nginx/<appid>.conf proxies it to the app's loopback port.
+import re as _re
 if cfg.get('open_path') is not True:
     err('config.ini must set open_path=true (WebUI External Open, D-011)')
-if not cfg['path'].startswith('http://${ip}'):
-    err('external open path must be http://${ip}:<port>')
+if not _re.match(r'^/[a-z0-9_-]+/$', cfg['path']):
+    err(f'path must be a route like /hermesagent/ (got {cfg["path"]!r}, C21)')
 if 'type' in cfg:
     err('D-011: type must be removed when open_path is set')
 if cfg.get('width') or cfg.get('height'):
@@ -97,6 +102,9 @@ for a in lang_auths:
         err(f'lang auth unexpected: {a!r} (expected Nous Research & nesquena)')
 if len(lang_auths) != 1:
     err('lang auth not uniform across sections')
+if _re.search(r'\bbeta\b', lang, _re.I):
+    err('lang contains \'beta\' wording (V11 one-vote veto alongside '
+        'config.ini beta:false)')
 
 blocks = re.split(r'^\[[a-z]{2}-[a-z]{2}\]$', lang, flags=re.M)[1:]
 keys_needed = ['name', 'auth', 'descript', 'release_note', 'important']
@@ -132,9 +140,12 @@ for script in ['postinst', 'prerm', 'postrm', 'data-postinst']:
 unit = open(os.path.join(T, 'hermesagent.service'), encoding='utf-8').read()
 for must in ['User=hermesagent', 'Group=hermesagent',
              'StartLimitIntervalSec=',
-             'ProtectSystem=strict']:
+             'ProtectSystem=strict',
+             'Environment=HERMES_WEBUI_HOST=127.0.0.1']:
     if must not in unit:
         err(f'systemd unit missing: {must}')
+if 'HERMES_WEBUI_HOST=0.0.0.0' in unit:
+    err('unit binds 0.0.0.0 (store security review: loopback + nginx only)')
 if 'StartLimitIntervalSec=0' not in unit and 'StartLimitBurst=' not in unit:
     # Either unlimited retries (interval=0) or an explicit burst cap.
     err('systemd unit missing: StartLimitBurst= (or StartLimitIntervalSec=0)')
@@ -144,6 +155,21 @@ for ctl in ['data-control.in', 'service-control.in', 'manual-control.in']:
     c = open(os.path.join(T, ctl), encoding='utf-8').read()
     if '__VERSION__' not in c:
         err(f'{ctl}: missing __VERSION__ placeholder')
+
+# --- webui.bz2 entry page + nginx route (F22/C21, 2026-09-16 rejection) ---
+webui_dir = os.path.join(os.path.dirname(T), 'assets', 'webui')
+for f in ('index.html', 'app.js', 'styles.css'):
+    if not os.path.isfile(os.path.join(webui_dir, f)):
+        err(f'assets/webui/{f} missing (webui.bz2 source, F22)')
+idx = open(os.path.join(webui_dir, 'index.html'), encoding='utf-8').read()
+if '<html' not in idx.lower():
+    err('assets/webui/index.html is not an HTML document')
+if f"href=\"{cfg['path']}\"" not in idx:
+    err(f'webui entry page does not link the route {cfg["path"]}')
+ng = open(os.path.join(T, 'hermesagent-nginx.conf'), encoding='utf-8').read()
+for must in (f"location {cfg['path']}", 'proxy_pass http://127.0.0.1:8787/'):
+    if must not in ng:
+        err(f'nginx route missing: {must}')
 
 # --- payload pins / wheels / agent reqs ---------------------------------
 P = os.path.join(os.path.dirname(T), 'payload')

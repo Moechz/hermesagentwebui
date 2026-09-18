@@ -17,12 +17,12 @@ SYSTEM_PYTHON=/usr/bin/python3
 WEBUI_PYTHON="$STATE/venvs/app/bin/python3"
 APP_ENTRY="$APP_HOME/app/server.py"
 
-# Bind all interfaces so the TOS desktop External Open entry (client-side,
-# opens http://${ip}:8787 in a new browser tab, D-011) can reach the app
-# from LAN clients. Access control is the WebUI password set during
-# first-run onboarding (REQUIREMENTS 5.1, upstream F-10). Residual risk
-# tracked in docs/TASK_STATE.md.
-export HERMES_WEBUI_HOST="${HERMES_WEBUI_HOST:-0.0.0.0}"
+# Bind loopback only (store security review: no direct LAN exposure). The
+# only entrance is the TOS nginx route /hermesagent/ (https, TOS account
+# session), which proxies to this port — see nginx/hermesagent.conf.
+# Layered on top: the WebUI password set during first-run onboarding
+# (REQUIREMENTS 5.1, upstream F-10).
+export HERMES_WEBUI_HOST="${HERMES_WEBUI_HOST:-127.0.0.1}"
 export HERMES_WEBUI_PORT="${HERMES_WEBUI_PORT:-8787}"
 export HERMES_HOME="${HERMES_HOME:-$STATE/hermes}"
 export HERMES_WEBUI_STATE_DIR="${HERMES_WEBUI_STATE_DIR:-$HERMES_HOME/webui}"

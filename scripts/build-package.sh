@@ -258,7 +258,8 @@ stage_agent_payload() {
 }
 
 stage_common_metadata() {
-  # <dst> : destination package root; metadata shared by data/manual debs.
+  # <dst> : destination package root; metadata + assets shared by data/manual
+  # debs.
   # TOS App Center parses TOS metadata from /usr/local/<appid>/ inside the
   # deb's data tar — NOT from the deb root. Proven by both validated
   # references: metube (/usr/local/metubedownload/config.ini) and Rsync
@@ -270,6 +271,13 @@ stage_common_metadata() {
   cp "$TEMPLATES/hermesagent.lang" "$dst/usr/local/hermesagent/hermesagent.lang"
   cp "$ASSETS/hermesagent.svg" \
      "$dst/usr/local/hermesagent/images/icons/hermesagent.svg"
+  # WebUI entry page (official WebUI-app layout, F22): tar.bz2 that must
+  # unpack to an openable .html. Kept in the data/manual trees (assets)
+  # AND the service tree (postinst unpacks it regardless of dual-package
+  # install order).
+  LC_ALL=C tar -cjf "$dst/usr/local/hermesagent/webui.bz2" \
+    --exclude='.DS_Store' --exclude='._*' -C "$ASSETS/webui" \
+    index.html app.js styles.css
 }
 
 stage_service_tree() {
@@ -291,6 +299,16 @@ stage_service_tree() {
      "$dst/usr/local/hermesagent/bin/hermesagent-provision"
   cp "$TEMPLATES/hermesagent.service" \
      "$dst/usr/local/hermesagent/init.d/hermesagent.service"
+  # nginx route for the External Open desktop entry (config.ini path is a
+  # route, not a host URL); the platform loads nginx/<appid>.conf.
+  mkdir -p "$dst/usr/local/hermesagent/nginx"
+  cp "$TEMPLATES/hermesagent-nginx.conf" \
+     "$dst/usr/local/hermesagent/nginx/hermesagent.conf"
+  # webui.bz2 also ships in the service tree so postinst can unpack the
+  # entry page regardless of dual-package install order.
+  LC_ALL=C tar -cjf "$dst/usr/local/hermesagent/webui.bz2" \
+    --exclude='.DS_Store' --exclude='._*' -C "$ASSETS/webui" \
+    index.html app.js styles.css
   stage_app "$dst"
   stage_agent_wheels "$plat"
   stage_wheels "$dst" "$plat"
@@ -354,6 +372,28 @@ for plat in $PLATFORMS; do
     [ -z "$found" ] || { echo "FAIL: AppleDouble/junk file in stage tree: $found" >&2; exit 1; }
   }
   junk_guard
+  # One-vote veto (official review): the DATA package must not contain
+  # binary executables (only DEBIAN lifecycle scripts are exempt). Scan
+  # for ELF/MTOC/mach-o magic in every regular file of the data tree.
+  data_binary_guard() {
+    python3 - "$DIST/stage/$plat/hermesagent-data" <<'PY'
+import os, sys
+root = sys.argv[1]
+MAGIC = (b'\x7fELF', b'\xfe\xed\xfa\xce', b'\xcf\xfa\xed\xfe', b'\xca\xfe\xba\xbe')
+for dirpath, _, files in os.walk(root):
+    for name in files:
+        p = os.path.join(dirpath, name)
+        try:
+            with open(p, 'rb') as f:
+                head = f.read(4)
+        except OSError:
+            continue
+        if head in MAGIC:
+            print(f"FAIL: binary executable in DATA tree (one-vote veto): {p}", file=sys.stderr)
+            sys.exit(1)
+PY
+  }
+  data_binary_guard
   build_deb "$SVC" "$DIST/hermesagent-service_${VERSION}_${darch}.deb"
   build_deb "$DATA" "$DIST/hermesagent-data_${VERSION}_all_${plat}.deb"
 

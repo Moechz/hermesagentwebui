@@ -10,6 +10,11 @@ set -e
 case "${1:-}" in
   remove|purge)
     rm -f /etc/systemd/system/hermesagent.service
+    rm -f /etc/nginx/conf.d/hermesagent.conf
+    # Removing the route must not leave nginx unable to reload.
+    if command -v nginx >/dev/null 2>&1 && nginx -t >/dev/null 2>&1; then
+      nginx -s reload >/dev/null 2>&1 || true
+    fi
     ;;
 esac
 systemctl daemon-reload
