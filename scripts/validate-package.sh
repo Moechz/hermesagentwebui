@@ -59,6 +59,17 @@ if 'type' in cfg:
     err('D-011: type must be removed when open_path is set')
 if cfg.get('width') or cfg.get('height'):
     err('external open must not declare an embedded window size')
+# help/official field rules (official 2026-09): both must be github.com
+# URLs — the review bot HTTP GETs config.ini.official, and any
+# Cloudflare-shielded forum URL 403s (坑 30a). help=own-repo issues;
+# official=upstream wiki if present else own-repo issues.
+import re as _re2
+for f in ('help', 'official'):
+    v = cfg.get(f, '')
+    if not _re2.match(r'^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(/(issues|wiki))?/?$', v):
+        err(f'config.ini {f} must be a github.com issues/wiki URL (got {v!r})')
+if not cfg.get('help', '').endswith('/issues'):
+    err('config.ini help must point at the own-repo /issues URL')
 
 # --- hermesagent.lang ---------------------------------------------------
 lang_path = os.path.join(T, 'hermesagent.lang')
