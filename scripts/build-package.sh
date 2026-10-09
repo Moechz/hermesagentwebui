@@ -460,6 +460,15 @@ PY
   # Hard guard again: the manual tree was staged after the check above.
   junk_guard
   build_deb "$MAN" "$DIST/hermesagent_${VERSION}_${plat}.deb"
+  # Release asset naming: the publishing-process spec uploads the bare
+  # <app_id>_<platform>.deb (the version comes from the Release metadata),
+  # and the store submission references that asset URL. Keep both: the
+  # version-infix name for local/manual installs, the bare name for uploads.
+  if [ -f "$DIST/hermesagent_${VERSION}_${plat}.deb" ]; then
+    cp -f "$DIST/hermesagent_${VERSION}_${plat}.deb" "$DIST/${APP_ID}_${plat}.deb"
+    (cd "$DIST" && sha256sum "${APP_ID}_${plat}.deb" \
+      > "${APP_ID}_${plat}.deb.sha256")
+  fi
   # Manual-install deb naming follows the official pattern
   # <app_id>_<platform>.deb (package-specification: platform token is the
   # TOS platform name, never the deb arch). The local artifact keeps the
