@@ -181,6 +181,16 @@ ng = open(os.path.join(T, 'hermesagent-nginx.conf'), encoding='utf-8').read()
 for must in (f"location {cfg['path']}", 'proxy_pass http://127.0.0.1:8787/'):
     if must not in ng:
         err(f'nginx route missing: {must}')
+# Host forwarding (seq -015): the TOS gateway serves the route on a
+# non-default port (:5443/:8181), so the browser Origin carries a port. A
+# bare $host strips it and upstream's CSRF same-origin gate then 403s every
+# browser POST/PUT/DELETE with "Cross-origin mismatch - check reverse proxy
+# headers" — which the onboarding wizard mislabels as an unreachable
+# provider base URL. Host must therefore be forwarded verbatim ($http_host).
+host_headers = re.findall(r'proxy_set_header\s+Host\s+([^;]+);', ng)
+if host_headers != ['$http_host']:
+    err('nginx route must forward Host verbatim '
+        f'(proxy_set_header Host $http_host;) got {host_headers!r} (seq -015)')
 
 # --- payload pins / wheels / agent reqs ---------------------------------
 P = os.path.join(os.path.dirname(T), 'payload')
