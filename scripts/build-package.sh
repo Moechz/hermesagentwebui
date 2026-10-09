@@ -188,15 +188,38 @@ stage_agent_wheels() {
     *) echo "stage_agent_wheels: unknown platform $plat" >&2; exit 1 ;;
   esac
   echo "stage_agent_wheels: downloading agent wheels for $plat ..."
-  python3 -m pip download \
-    --require-hashes --only-binary=:all: --no-deps \
-    --implementation cp --python-version 312 \
-    --abi cp312 --abi abi3 --abi none \
-    $plat_flags \
-    --dest "$cache" \
-    -r "$PAYLOAD/agent-core-requirements.txt" \
-    -r "$PAYLOAD/lazy-extras.lock" \
-    -r "$PAYLOAD/build-tools.lock"
+  local common=(
+    --require-hashes --only-binary=:all: --no-deps
+    --implementation cp --python-version 312
+    --abi cp312 --abi abi3 --abi none
+  )
+  # shellcheck disable=SC2206
+  local plat_args=($plat_flags)
+  # Online first (a repo-side pin change must be able to pull new wheels),
+  # with up to 3 attempts: CN routes to the index break mid-stream often.
+  local attempt ok=0
+  for attempt in 1 2 3; do
+    if python3 -m pip download "${common[@]}" "${plat_args[@]}" \
+         --dest "$cache" \
+         -r "$PAYLOAD/agent-core-requirements.txt" \
+         -r "$PAYLOAD/lazy-extras.lock" \
+         -r "$PAYLOAD/build-tools.lock"; then ok=1; break; fi
+    echo "stage_agent_wheels: attempt $attempt failed for $plat (flaky index route)" >&2
+    sleep 5
+  done
+  if [ "$ok" != "1" ]; then
+    # Fallback: this machine's cache is the build's own wheel cache and is
+    # hash-pinned by the lock files, so a fully cached arch can be built with
+    # no index at all. pip still verifies every --hash; a missing wheel fails
+    # loudly instead of shipping a partial payload.
+    echo "stage_agent_wheels: index unreachable; retrying offline from $cache" >&2
+    python3 -m pip download "${common[@]}" "${plat_args[@]}" \
+      --no-index --find-links "$cache" \
+      --dest "$cache" \
+      -r "$PAYLOAD/agent-core-requirements.txt" \
+      -r "$PAYLOAD/lazy-extras.lock" \
+      -r "$PAYLOAD/build-tools.lock"
+  fi
 }
 
 stage_payload() {
